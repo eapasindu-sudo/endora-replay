@@ -4,8 +4,10 @@ using EndoraReplay.App.Output;
 using EndoraReplay.Core.Abstractions;
 using EndoraReplay.Core.Automation;
 using EndoraReplay.Core.Config;
+using EndoraReplay.Core.Input;
 using EndoraReplay.Core.Services;
 using EndoraReplay.Hardware;
+using EndoraReplay.Hardware.Midi;
 using EndoraReplay.Hardware.Video;
 using EndoraReplay.Remote;
 
@@ -36,6 +38,14 @@ public sealed class AppHost : IAsyncDisposable
     public ReplayAutomationService Automation { get; private set; } = null!;
     public OperatorController Operator { get; private set; } = null!;
     public RemoteServer Remote { get; private set; } = null!;
+    public WinMmMidiInput Midi { get; } = new();
+    private MidiMapper _midiMap = new(new MidiSettings());
+
+    /// <summary>While set (by the settings window), MIDI messages go here to be learned instead of running actions.</summary>
+    public Action<MidiMessage>? MidiLearn { get; set; }
+
+    /// <summary>Every MIDI message received, for live readouts.</summary>
+    public event Action<MidiMessage>? MidiReceived;
     public UpdateService Updates { get; private set; } = null!;
 
     /// <summary>Settings that only take effect after a restart (format, data folder, output).</summary>
@@ -92,6 +102,8 @@ public sealed class AppHost : IAsyncDisposable
 
         await StartAtemAsync().ConfigureAwait(false);
         await StartRemoteAsync().ConfigureAwait(false);
+        Midi.MessageReceived += OnMidi;
+        StartMidi();
         _ = Task.Run(StartCaptureAsync);
     }
 
@@ -135,6 +147,40 @@ public sealed class AppHost : IAsyncDisposable
         {
             Diagnostics.Error(LogCategory.Automation, $"Stinger not loaded: {e.Message}");
         }
+    }
+
+    /// <summary>Opens the MIDI device(s) and loads the bindings. Safe to call again after settings change.</summary>
+    public void StartMidi()
+    {
+        var m = Settings.Midi;
+        _midiMap = new MidiMapper(m);
+        try
+        {
+            if (!m.Enabled)
+            {
+                Midi.Close();
+                return;
+            }
+            foreach (var p in Midi.Open(m.Device)) Diagnostics.Warn(LogCategory.App, "MIDI: " + p);
+            if (Midi.OpenDevices.Count > 0) Diagnostics.Info(LogCategory.App, "MIDI listening on " + string.Join(", ", Midi.OpenDevices));
+        }
+        catch (Exception e)
+        {
+            Diagnostics.Error(LogCategory.App, $"MIDI could not start: {e.Message}");
+        }
+    }
+
+    private void OnMidi(MidiMessage m)
+    {
+        MidiReceived?.Invoke(m);
+        if (MidiLearn is { } learn)
+        {
+            learn(m);
+            return;
+        }
+        foreach (var c in _midiMap.Map(m))
+            if (Operator.Execute(c.Action, c.Value, origin: "midi") is { } err && c.Action != MidiMapper.JogAction)
+                Diagnostics.Warn(LogCategory.App, $"MIDI {c.Action}: {err}");
     }
 
     public async Task StartCaptureAsync()
@@ -182,6 +228,7 @@ public sealed class AppHost : IAsyncDisposable
             || old.Buffer.Seconds != updated.Buffer.Seconds || old.Buffer.JpegQuality != updated.Buffer.JpegQuality;
         var restartAtem = JsonSerializer.Serialize(old.Atem) != JsonSerializer.Serialize(updated.Atem);
         var restartRemote = JsonSerializer.Serialize(old.Remote) != JsonSerializer.Serialize(updated.Remote);
+        var restartMidi = JsonSerializer.Serialize(old.Midi) != JsonSerializer.Serialize(updated.Midi);
 
         // Copy into the live instance so every service holding it sees the change.
         CopyInto(updated, old);
@@ -190,6 +237,7 @@ public sealed class AppHost : IAsyncDisposable
         LoadStingers();
         if (restartAtem) await StartAtemAsync().ConfigureAwait(false);
         if (restartRemote) await StartRemoteAsync().ConfigureAwait(false);
+        if (restartMidi) StartMidi();
         if (restartCapture) await StartCaptureAsync().ConfigureAwait(false);
         Diagnostics.Info(LogCategory.App, "Settings applied" + (RestartRequired ? " (restart Endora to apply output/format/folder changes)" : ""));
     }
@@ -218,6 +266,7 @@ public sealed class AppHost : IAsyncDisposable
     {
         Diagnostics.Info(LogCategory.App, "Shutting down");
         await _housekeeping.CancelAsync().ConfigureAwait(false);
+        Midi.Dispose();
         await Remote.DisposeAsync().ConfigureAwait(false);
         await Automation.DisposeAsync().ConfigureAwait(false);
         await Atem.DisposeAsync().ConfigureAwait(false);

@@ -154,6 +154,7 @@ public sealed class OperatorController : IRemoteHandler
             case OperatorActions.Speed100: return SetSpeed(1.0);
             case OperatorActions.Speed50: return SetSpeed(0.5);
             case OperatorActions.Speed25: return SetSpeed(0.25);
+            case "SetSpeed": return SetSpeed(Math.Clamp(value ?? 1.0, 0.01, 2.0));
         }
         return $"Unknown action '{action}'.";
     }

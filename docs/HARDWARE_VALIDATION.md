@@ -68,6 +68,14 @@ With **Endora stinger video**:
 - [ ] Right-click a clip: the Tag submenu sets its tag.
 - [ ] Fill the drive near the limit: the oldest clips are deleted, an armed or queued clip is kept.
 
+## 5a. MIDI controller
+
+- [ ] The controller appears in Settings → MIDI controller and "Last message" changes when a control moves.
+- [ ] Program all: each action learns the pressed button; Skip leaves an action unbound.
+- [ ] Jog wheel learn (turn right): right turns go forward and left turns go back by the frames-per-step value.
+- [ ] T-bar: Set 0 % and Set 100 % at each end; speed follows the T-bar smoothly during playback.
+- [ ] Keyboard Program all keys: each key is learned in turn; Esc stops, Backspace skips.
+
 ## 5b. NDI
 
 - [ ] With the NDI Runtime installed, NDI sources appear in Settings → Capture inputs and can be used as a camera or as Program.

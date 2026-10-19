@@ -25,7 +25,7 @@ namespace EndoraReplay.App.Views;
 /// </summary>
 public partial class SettingsWindow : Window
 {
-    public enum Page { Inputs, Atem, Output, Shortcuts, Remote, Diagnostics }
+    public enum Page { Inputs, Atem, Output, Shortcuts, Midi, Remote, Diagnostics }
 
     private static readonly (Page Page, string Title, string Sub)[] Pages =
     [
@@ -33,6 +33,7 @@ public partial class SettingsWindow : Window
         (Page.Atem, "ATEM & automation", "Replay input, transitions, stinger"),
         (Page.Output, "Output & storage", "HDMI out to ATEM, holding frame"),
         (Page.Shortcuts, "Keyboard shortcuts", "Rebind every operator key"),
+        (Page.Midi, "MIDI controller", "Buttons, jog wheel, T-bar"),
         (Page.Remote, "Phone remote", "QR code, access, connected phones"),
         (Page.Diagnostics, "Diagnostics & updates", "Health, support bundle, version"),
     ];
@@ -74,15 +75,22 @@ public partial class SettingsWindow : Window
     private void OnNavChanged(object sender, SelectionChangedEventArgs e)
     {
         if (Nav.SelectedItem is not ListBoxItem { Tag: Page p }) return;
+        if (p != _page)
+        {
+            // Rebuilding the same page keeps a key or MIDI capture going.
+            _capturingAction = null;
+            _keyLearnAll = null;
+        }
         _page = p;
-        _capturingAction = null;
         _refreshPage = null;
+        if (p != Page.Midi) StopMidiLearn();
         PageHost.Content = p switch
         {
             Page.Inputs => BuildInputs(),
             Page.Atem => BuildAtem(),
             Page.Output => BuildOutput(),
             Page.Shortcuts => BuildShortcuts(),
+            Page.Midi => BuildMidi(),
             Page.Remote => BuildRemote(),
             _ => BuildDiagnostics(),
         };
@@ -499,7 +507,21 @@ public partial class SettingsWindow : Window
         var root = PageRoot("Keyboard shortcuts", "Click a key, then press the new key. Backspace clears it while capturing… press Esc to cancel. Ctrl+, opens settings.");
         var reset = new Button { Content = "Reset to defaults", Style = S("BtnBase"), Padding = new Thickness(12, 6, 12, 6), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12) };
         reset.Click += (_, _) => { _edit.KeyBindings = new Dictionary<string, string>(KeyBindingDefaults.All); Changed(); Rebuild(); };
-        root.Children.Add(reset);
+        var all = new Button { Content = "Program all keys", Style = S("BtnBlue"), Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
+        all.Click += (_, _) =>
+        {
+            _keyLearnAll = new Queue<string>(ShortcutGroups.SelectMany(g => g.Actions));
+            _capturingAction = _keyLearnAll.Dequeue();
+            Rebuild();
+        };
+        root.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12), Children = { all, reset } });
+        reset.Margin = new Thickness(0);
+        if (_capturingAction is not null && _keyLearnAll is not null)
+            root.Children.Add(new TextBlock
+            {
+                Text = $"Press the key for: {ActionLabel(_capturingAction)}   (Esc stops, Backspace skips)",
+                FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = B("Blue"), Margin = new Thickness(0, 0, 0, 12),
+            });
 
         var conflicts = KeyBindingDefaults.FindConflicts(_edit.KeyBindings).SelectMany(c => c.Actions).ToHashSet();
         var wrap = new WrapPanel();
@@ -541,7 +563,12 @@ public partial class SettingsWindow : Window
         if (key is Key.LeftShift or Key.RightShift or Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin) return;
         e.Handled = true;
         var mods = Keyboard.Modifiers;
-        if (key == Key.Escape && mods == ModifierKeys.None && _edit.KeyBindings.GetValueOrDefault(_capturingAction) != "Escape")
+        if (_keyLearnAll is not null && mods == ModifierKeys.None && key is Key.Escape or Key.Back)
+        {
+            // Programming all keys: Esc stops, Backspace skips and keeps the current key.
+            if (key == Key.Escape) _keyLearnAll.Clear();
+        }
+        else if (key == Key.Escape && mods == ModifierKeys.None && _edit.KeyBindings.GetValueOrDefault(_capturingAction) != "Escape")
         {
             // Esc cancels capture, unless the operator is deliberately re-binding Esc to this action: press Esc twice.
             if (_escPending) { _edit.KeyBindings[_capturingAction] = "Escape"; Changed(); }
@@ -564,11 +591,13 @@ public partial class SettingsWindow : Window
             Changed();
         }
         _escPending = false;
-        _capturingAction = null;
+        _capturingAction = _keyLearnAll is { Count: > 0 } q ? q.Dequeue() : null;
+        if (_capturingAction is null) _keyLearnAll = null;
         Rebuild();
     }
 
     private bool _escPending;
+    private Queue<string>? _keyLearnAll;
 
     // ================= phone remote =================
 

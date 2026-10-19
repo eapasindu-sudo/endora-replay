@@ -19,6 +19,7 @@ and is wired up, not yet run against the hardware. **Unavailable** = not impleme
 |---|---|---|
 | USB capture cards (UVC) | OpenCV Media Foundation (MSMF), DirectShow fallback, MJPG requested | **Built, untested on real cards** |
 | NDI inputs (cameras or Program) | NDI SDK runtime `Processing.NDI.Lib.x64.dll`, found through `NDI_RUNTIME_DIR_V6/V5/V4`. The runtime is **not** shipped with Endora; install the free NDI Runtime or NDI Tools. | **Built, untested with real NDI sources** |
+| MIDI keyboard / controller | Windows multimedia MIDI (winmm), no extra driver. Buttons, jog wheel (auto-detected encoding) and T-bar. | **Built, untested with a real controller** |
 | NDI output of the replay playout | Same runtime, sends BGRA at the project rate. The REPLAY badge is not included. | **Built, untested** |
 | Stinger over live (DSK luma key) | ATEM DSK fill/cut = replay input, luma key clip/gain from settings. Stinger needs a black background. | **Built, tested in simulation only** |
 

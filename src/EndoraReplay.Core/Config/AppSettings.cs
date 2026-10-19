@@ -20,6 +20,9 @@ public sealed class AppSettings
     public UpdateSettings Updates { get; set; } = new();
     public Dictionary<string, string> KeyBindings { get; set; } = new(Input.KeyBindingDefaults.All);
 
+    /// <summary>MIDI keyboard / controller: programmable buttons, jog wheel and T-bar.</summary>
+    public Input.MidiSettings Midi { get; set; } = new();
+
     [JsonIgnore]
     public VideoFormat Format => Model.VideoFormat.Parse(VideoFormat);
 
@@ -46,6 +49,7 @@ public sealed class AppSettings
                      .GroupBy(s => (s.Backend, s.DeviceId)).Where(g => g.Count() > 1))
             problems.Add($"Device '{dup.Key.DeviceId}' is assigned to more than one source.");
         if (Atem.ReplayInput is < 1 or > 40) problems.Add("ATEM replay input must be between 1 and 40.");
+        problems.AddRange(Midi.Validate());
         if (Buffer.Seconds is < 5 or > 3600) problems.Add("Buffer length must be between 5 and 3600 seconds.");
         if (Buffer.JpegQuality is < 30 or > 100) problems.Add("Recording quality must be between 30 and 100.");
         if (Remote.Port is < 1024 or > 65535) problems.Add("Remote port must be between 1024 and 65535.");
