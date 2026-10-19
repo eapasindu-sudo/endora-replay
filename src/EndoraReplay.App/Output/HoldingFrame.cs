@@ -47,36 +47,15 @@ public static class HoldingFrame
 
     private static void DrawSlate(DrawingContext dc, int w, int h)
     {
-        var bg = new LinearGradientBrush(Color.FromRgb(0x15, 0x0B, 0x24), Color.FromRgb(0x2A, 0x0F, 0x12), 45);
-        dc.DrawRectangle(bg, null, new Rect(0, 0, w, h));
-        var s = h / 1080.0;
-        var accent = new SolidColorBrush(Color.FromRgb(0xFF, 0x6A, 0x1A));
-        var cx = w / 2.0;
-        var cy = h * 0.435;
-        dc.DrawEllipse(null, new Pen(accent, 10 * s), new Point(cx, cy), 110 * s, 110 * s);
-        var tri = new StreamGeometry();
-        using (var g = tri.Open())
-        {
-            g.BeginFigure(new Point(cx - 35 * s, cy - 60 * s), true, true);
-            g.LineTo(new Point(cx - 35 * s, cy + 60 * s), true, false);
-            g.LineTo(new Point(cx + 70 * s, cy), true, false);
-        }
-        dc.DrawGeometry(accent, null, tri);
-        DrawCentered(dc, "ENDORA REPLAY", cx, h * 0.6, 96 * s, Brushes.White, FontWeights.Bold, 18 * s);
-        DrawCentered(dc, "ACTION REPLAY", cx, h * 0.69, 40 * s, new SolidColorBrush(Color.FromRgb(0xAA, 0x8F, 0xBF)), FontWeights.SemiBold, 14 * s);
-    }
-
-    private static void DrawCentered(DrawingContext dc, string text, double cx, double y, double size, Brush brush, FontWeight weight, double spacing)
-    {
-        // Letter-spaced title: draw glyph runs one character at a time.
-        var tf = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, weight, FontStretches.Normal);
-        var parts = text.Select(c => new FormattedText(c.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, tf, size, brush, 1.0)).ToList();
-        var total = parts.Sum(p => p.WidthIncludingTrailingWhitespace) + spacing * (parts.Count - 1);
-        var x = cx - total / 2;
-        foreach (var p in parts)
-        {
-            dc.DrawText(p, new Point(x, y));
-            x += p.WidthIncludingTrailingWhitespace + spacing;
-        }
+        // The Endora Replay branding (designed on black) centred at 60 % of the picture width.
+        var logo = new BitmapImage();
+        logo.BeginInit();
+        logo.CacheOption = BitmapCacheOption.OnLoad;
+        logo.UriSource = new Uri("pack://application:,,,/Assets/endora-branding.png");
+        logo.EndInit();
+        logo.Freeze();
+        var lw = w * 0.6;
+        var lh = lw * logo.PixelHeight / logo.PixelWidth;
+        dc.DrawImage(logo, new Rect((w - lw) / 2, (h - lh) / 2, lw, lh));
     }
 }

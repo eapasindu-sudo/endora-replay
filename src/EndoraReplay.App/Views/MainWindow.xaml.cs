@@ -58,6 +58,7 @@ public partial class MainWindow : Window
         _host = host;
         _keys = new KeyBindingService(host.Settings.KeyBindings);
         InitializeComponent();
+        BuildMeters();
         ClipList.ItemsSource = _clips;
         LogList.ItemsSource = _log;
         VersionText.Text = $"INSTANT REPLAY · v{UpdateService.CurrentVersionText}";
@@ -444,6 +445,7 @@ public partial class MainWindow : Window
 
     private void RefreshUi()
     {
+        RefreshMeters();
         var s = _host.Settings;
         var atem = _host.Atem.Snapshot;
         var auto = _host.Automation;

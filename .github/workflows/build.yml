@@ -67,7 +67,7 @@ jobs:
         run: >
           vpk pack --packId EndoraReplay --packVersion ${{ steps.ver.outputs.version }} --packDir publish
           --mainExe EndoraReplay.exe --packTitle "Endora Replay" --packAuthors "Endora"
-          --icon src/EndoraReplay.App/Assets/endora.ico --outputDir Releases
+          --icon src/EndoraReplay.App/Assets/endora.ico --splashImage src/EndoraReplay.App/Assets/endora-branding.png --outputDir Releases
 
       - uses: actions/upload-artifact@v4
         with:

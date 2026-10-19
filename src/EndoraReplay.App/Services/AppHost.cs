@@ -52,10 +52,13 @@ public sealed class AppHost : IAsyncDisposable
     /// <summary>Settings that only take effect after a restart (format, data folder, output).</summary>
     public bool RestartRequired { get; private set; }
 
-    public static async Task<AppHost> StartAsync(string settingsPath)
+    private IProgress<string>? _progress;
+
+    public static async Task<AppHost> StartAsync(string settingsPath, IProgress<string>? progress = null)
     {
+        progress?.Report("Loading settings…");
         var settings = AppSettings.Load(settingsPath);
-        var h = new AppHost(settings, settingsPath);
+        var h = new AppHost(settings, settingsPath) { _progress = progress };
         await h.BuildAsync().ConfigureAwait(false);
         return h;
     }
@@ -68,11 +71,13 @@ public sealed class AppHost : IAsyncDisposable
         Diagnostics.Info(LogCategory.App, $"Endora Replay {UpdateService.CurrentVersionText} starting. Format {s.VideoFormat}.");
         foreach (var p in s.Validate()) Diagnostics.Warn(LogCategory.App, "Settings: " + p);
 
+        _progress?.Report("Opening the replay drive…");
         Storage = new StorageService(s.Buffer.DataFolder, s.Buffer.MinFreeDiskGb, Diagnostics);
         Buffers = new RollingBufferService(Storage.BufferFolder, Diagnostics);
         Capture = new CaptureService(HardwareFactory.CaptureBackends(), Buffers, Diagnostics, Clock);
         Clips = new ClipService(Buffers, Storage, Diagnostics, Clock);
 
+        _progress?.Report("Opening the replay output…");
         Output = s.Output.Kind switch
         {
             ReplayOutputKind.Display => new DisplayReplayOutput(s.Output, Diagnostics),
@@ -87,6 +92,7 @@ public sealed class AppHost : IAsyncDisposable
         Playback = new ReplayPlaybackService(Output, s.Format, Diagnostics);
         Playback.SetSpeed(0.5);
         Atem = new AtemSwitcherService(HardwareFactory.CreateSwitcher, Diagnostics);
+        _progress?.Report("Loading stingers…");
         LoadStingers();
 
         OperatorController? op = null;
@@ -101,7 +107,9 @@ public sealed class AppHost : IAsyncDisposable
         Remote = new RemoteServer(op, Diagnostics);
         Updates = new UpdateService(s.Updates, Diagnostics);
 
+        _progress?.Report("Connecting to the ATEM…");
         await StartAtemAsync().ConfigureAwait(false);
+        _progress?.Report("Starting the phone remote…");
         await StartRemoteAsync().ConfigureAwait(false);
         Midi.MessageReceived += OnMidi;
         StartMidi();

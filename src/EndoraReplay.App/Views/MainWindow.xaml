@@ -21,9 +21,7 @@
             </Border.Background>
             <DockPanel Margin="16,0" LastChildFill="False">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
-                    <Border Width="30" Height="30" CornerRadius="7" Background="{StaticResource LogoGrad}">
-                        <Path Data="M0,0 L0,12 L10,6 Z" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="3,0,0,0" />
-                    </Border>
+                    <Image Source="/Assets/endora-mark.png" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" />
                     <StackPanel Margin="10,0,24,0" VerticalAlignment="Center">
                         <TextBlock Text="ENDORA REPLAY" FontWeight="Black" FontSize="15" />
                         <TextBlock x:Name="VersionText" Text="INSTANT REPLAY" Style="{StaticResource Label}" FontSize="9" />
@@ -59,6 +57,9 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <Border Style="{StaticResource Pill}" ToolTip="PC load: CPU, GPU, memory and network">
+                        <StackPanel x:Name="Meters" Orientation="Horizontal" VerticalAlignment="Center" />
+                    </Border>
                     <TextBlock Text="SESSION TC" Style="{StaticResource Label}" Margin="0,0,10,0" />
                     <TextBlock x:Name="TcText" Text="00:00:00:00" Style="{StaticResource Mono}" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,16,0" />
                     <Border Style="{StaticResource Pill}">

@@ -15,20 +15,31 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnUnhandled;
+        var splash = new SplashWindow();
+        splash.Show();
+        var shownAt = DateTime.UtcNow;
+        // Created on the UI thread so status updates land here.
+        var progress = new Progress<string>(splash.SetStatus);
         try
         {
-            _host = await Task.Run(() => AppHost.StartAsync(AppSettings.DefaultSettingsPath));
+            _host = await Task.Run(() => AppHost.StartAsync(AppSettings.DefaultSettingsPath, progress));
         }
         catch (Exception ex)
         {
+            splash.Close();
             MessageBox.Show($"Endora Replay could not start.\n\n{ex.Message}\n\nSettings file: {AppSettings.DefaultSettingsPath}",
                 "Endora Replay", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
+        splash.SetStatus("Opening the operator screen…");
+        // Keep the loading screen up long enough to be seen, without delaying a slow start further.
+        var minimum = TimeSpan.FromSeconds(1.5) - (DateTime.UtcNow - shownAt);
+        if (minimum > TimeSpan.Zero) await Task.Delay(minimum);
         var main = new MainWindow(_host);
         MainWindow = main;
         main.Show();
+        splash.Close();
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
