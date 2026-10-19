@@ -30,11 +30,11 @@ public sealed class NdiCaptureBackend : ICaptureBackend
             if (!rx.TryCapture(500, out var f)) continue;
             var fps = f.FrameRateD == 0 ? 0 : (double)f.FrameRateN / f.FrameRateD;
             rx.Free(ref f);
-            if (f.Width != format.Width || f.Height != format.Height)
-                return ModeValidationResult.Fail($"{device.Name}: NDI source is {f.Width}x{f.Height}, project needs {format.Width}x{format.Height}.");
             if (fps > 0 && !format.MatchesRate(fps, 0.6))
-                return ModeValidationResult.Fail($"{device.Name}: NDI source runs at {fps:0.##} fps, project is {format.FramesPerSecond:0.##} fps.");
-            return ModeValidationResult.Ok($"{device.Name}: {f.Width}x{f.Height} @ {fps:0.##} fps (NDI)");
+                return ModeValidationResult.Fail($"{device.Name}: NDI source runs at {fps:0.##} fps, project is {format.FramesPerSecond:0.##} fps. Set the sender's NDI output to {format.FramesPerSecond:0.##} fps.");
+            // A different picture size is scaled to the project size (aspect kept, black bars), so any NDI output works.
+            var scaled = f.Width != format.Width || f.Height != format.Height ? $", scaled to {format.Width}x{format.Height}" : "";
+            return ModeValidationResult.Ok($"{device.Name}: {f.Width}x{f.Height} @ {fps:0.##} fps (NDI{scaled})");
         }
         return ModeValidationResult.Fail($"{device.Name}: no video from this NDI source within 5 s.");
     }, cancellationToken);
@@ -148,6 +148,7 @@ internal sealed class NdiCaptureSource(int sourceId, CaptureDeviceInfo device, V
         var signal = false;
         var misses = 0;
         using var bgr = new Mat();
+        using var fitted = new Mat();
         while (!_stop)
         {
             if (!rx.TryCapture(200, out var f))
@@ -180,13 +181,31 @@ internal sealed class NdiCaptureSource(int sourceId, CaptureDeviceInfo device, V
             {
                 rx.Free(ref f);
             }
-            Cv2.ImEncode(".jpg", bgr, out var jpeg, encode);
+            var outFrame = bgr;
+            if (bgr.Width != Format.Width || bgr.Height != Format.Height)
+            {
+                FitInto(bgr, fitted, Format.Width, Format.Height);
+                outFrame = fitted;
+            }
+            Cv2.ImEncode(".jpg", outFrame, out var jpeg, encode);
             FrameArrived?.Invoke(new EncodedFrame
             {
                 SourceId = SourceId, FrameNumber = n++, TimestampTicks = ticks,
-                Width = bgr.Width, Height = bgr.Height, Codec = FrameCodec.Jpeg, Data = jpeg,
+                Width = outFrame.Width, Height = outFrame.Height, Codec = FrameCodec.Jpeg, Data = jpeg,
             });
         }
+    }
+
+    /// <summary>Scales <paramref name="src"/> into a w×h black frame, keeping its aspect ratio.</summary>
+    private static void FitInto(Mat src, Mat dst, int w, int h)
+    {
+        var scale = Math.Min((double)w / src.Width, (double)h / src.Height);
+        var sw = Math.Max(1, (int)Math.Round(src.Width * scale));
+        var sh = Math.Max(1, (int)Math.Round(src.Height * scale));
+        dst.Create(h, w, MatType.CV_8UC3);
+        dst.SetTo(Scalar.Black);
+        using var roi = new Mat(dst, new Rect((w - sw) / 2, (h - sh) / 2, sw, sh));
+        Cv2.Resize(src, roi, new Size(sw, sh), 0, 0, scale < 1 ? InterpolationFlags.Area : InterpolationFlags.Linear);
     }
 
     public Task StopAsync()
