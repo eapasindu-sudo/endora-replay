@@ -59,17 +59,11 @@ Start menu and desktop shortcuts.
 GitHub Actions (`.github/workflows/build.yml`) builds every push and pull request on `windows-latest`, runs
 the tests, and uploads the installer as a build artifact.
 
-To ship an update to installed PCs, either run the workflow from the Actions tab with a version (for example `1.2.0`), or push a tag:
+To ship an update to installed PCs, use either way:
 
-```bash
-git tag v1.2.0
-git push origin v1.2.0
-```
-
-The tag build packs version 1.2.0 (with a delta from the previous release) and publishes a GitHub Release.
-Installed copies check that repository every 30 minutes (Settings → Diagnostics & updates → Release source),
-download in the background, and install only when the operator presses **Restart & install**, which is
-disabled while a replay is on air.
+- GitHub → **Releases** → **Draft a new release**, create a tag such as `v1.2.0`, and publish. The workflow
+  builds that version and adds the installer and update files to the release.
+- GitHub → **Actions** → **Build Windows installer** → **Run workflow** with a version such as `1.2.0`.
 
 If the repository is private, installed PCs cannot read its releases without a token. Keep releases in a
 public repository, or publish them to a public releases-only repository and point Release source at it.

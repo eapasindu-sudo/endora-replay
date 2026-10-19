@@ -3,8 +3,9 @@ name: Build Windows installer
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
@@ -36,7 +37,7 @@ jobs:
         shell: pwsh
         run: |
           $release = "false"
-          if ("${{ github.ref_type }}" -eq "tag") { $v = "${{ github.ref_name }}".TrimStart("v"); $release = "true" }
+          if ("${{ github.event_name }}" -eq "release") { $v = "${{ github.event.release.tag_name }}".TrimStart("v"); $release = "merge" }
           elseif ("${{ inputs.version }}" -ne "") { $v = "${{ inputs.version }}".TrimStart("v"); $release = "true" }
           else { $v = "1.0.0-ci.${{ github.run_number }}" }
           "version=$v" >> $env:GITHUB_OUTPUT
@@ -58,7 +59,7 @@ jobs:
         run: dotnet tool install -g vpk --version 1.2.161
 
       - name: Download previous release (for delta updates)
-        if: steps.ver.outputs.release == 'true'
+        if: steps.ver.outputs.release != 'false'
         continue-on-error: true
         run: vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
 
@@ -78,3 +79,9 @@ jobs:
         run: >
           vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
           --publish --releaseName "Endora Replay ${{ steps.ver.outputs.version }}" --tag v${{ steps.ver.outputs.version }} --targetCommitish ${{ github.sha }} --outputDir Releases
+
+      - name: Add installer to the published release
+        if: steps.ver.outputs.release == 'merge'
+        run: >
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+          --merge --publish --tag ${{ github.event.release.tag_name }} --outputDir Releases
