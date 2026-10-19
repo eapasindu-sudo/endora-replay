@@ -1,0 +1,65 @@
+// Endora Replay settings example.
+// Copy to %LOCALAPPDATA%\EndoraReplay\settings.json, or edit everything in the app under Settings.
+{
+  "videoFormat": "1080p50",
+  "sources": [
+    { "sourceId": 1, "name": "Cam 1 · Main end",   "role": "Camera", "enabled": true,  "backend": "MediaFoundation", "deviceId": "0", "deviceName": "USB3 HDMI Capture" },
+    { "sourceId": 2, "name": "Cam 2 · Square leg", "role": "Camera", "enabled": true,  "backend": "MediaFoundation", "deviceId": "1", "deviceName": "USB3 HDMI Capture #2" },
+    { "sourceId": 3, "name": "Cam 3 · Bowler end", "role": "Camera", "enabled": true,  "backend": "MediaFoundation", "deviceId": "2", "deviceName": "Elgato Cam Link 4K" },
+    { "sourceId": 4, "name": "Cam 4 · Stump cam",  "role": "Camera", "enabled": true,  "backend": "MediaFoundation", "deviceId": "3", "deviceName": "USB3 HDMI Capture #3" },
+    { "sourceId": 5, "name": "Cam 5", "role": "Camera", "enabled": false, "backend": "MediaFoundation" },
+    { "sourceId": 6, "name": "Cam 6", "role": "Camera", "enabled": false, "backend": "MediaFoundation" },
+    { "sourceId": 7, "name": "Cam 7", "role": "Camera", "enabled": false, "backend": "MediaFoundation" },
+    { "sourceId": 8, "name": "Cam 8 · Rehearsal pattern", "role": "Camera", "enabled": false, "backend": "Simulated", "deviceId": "sim-8" },
+    { "sourceId": 0, "name": "Program", "role": "Program", "enabled": false, "backend": "MediaFoundation", "deviceId": "4", "deviceName": "ATEM HDMI out capture" }
+  ],
+  "buffer": {
+    "seconds": 120,
+    "jpegQuality": 90,
+    "dataFolder": "D:\\EndoraReplay",
+    "estimatedFrameBytes": 400000,
+    "minFreeDiskGb": 50
+  },
+  "atem": {
+    "backend": "NetworkProtocol",
+    "address": "192.168.10.240",
+    "mixEffectBlock": 1,
+    "replayInput": 8,
+    "reconnectSeconds": 3
+  },
+  "automation": {
+    // Off by default: Endora never switches away from live until you enable this.
+    "enabled": false,
+    "autoSwitchIn": true,
+    "startOnProgramEdge": true,
+    "returnToLive": "Automatic",
+    // ATEM Mini Extreme has no clip media pool, so use EndoraStinger for a logo stinger.
+    "transitionIn": "EndoraStinger",
+    "transitionInStyle": "Mix",
+    "transitionOut": "EndoraStinger",
+    "transitionOutStyle": "Mix",
+    "stingerInFile": "D:\\EndoraReplay\\stingers\\endora-stinger.mp4",
+    "stingerOutFile": null,
+    "stingerCutFrame": 12,
+    "prerollMs": 0,
+    "lockoutMs": 1500,
+    "waitForProgramTimeoutMs": 5000
+  },
+  "output": {
+    "kind": "Display",
+    "displayDevice": "\\\\.\\DISPLAY2",
+    "holding": "Slate",
+    "holdingImageFile": null
+  },
+  "remote": {
+    "enabled": true,
+    "port": 8686,
+    "allowTransport": true,
+    "accessCode": "7KQ2-M9XA"
+  },
+  "updates": {
+    "checkAutomatically": true,
+    "repositoryUrl": "https://github.com/eapasindu-sudo/endora-replay",
+    "includePrereleases": false
+  }
+}
