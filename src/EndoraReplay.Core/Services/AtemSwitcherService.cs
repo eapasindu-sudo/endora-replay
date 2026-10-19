@@ -94,6 +94,12 @@ public sealed class AtemSwitcherService : IAsyncDisposable
         await sw.PerformAutoTransitionAsync().ConfigureAwait(false);
     });
 
+    public Task ConfigureDownstreamKeyAsync(int keyer, int input, double clip, double gain) =>
+        RunAsync($"DSK {keyer} luma key of input {input} (clip {clip:0}%, gain {gain:0}%)", sw => sw.ConfigureDownstreamKeyAsync(keyer, input, clip, gain));
+
+    public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir) =>
+        RunAsync($"DSK {keyer} {(onAir ? "on air" : "off air")}", sw => sw.SetDownstreamKeyOnAirAsync(keyer, onAir));
+
     private async Task RunAsync(string what, Func<IAtemSwitcher, Task> command)
     {
         var sw = _switcher;

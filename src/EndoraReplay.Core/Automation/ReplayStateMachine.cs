@@ -36,6 +36,9 @@ public sealed record EmergencyOverrideRequested(bool Engage, string Origin) : Au
 
 public sealed record ClearErrorRequested(string Origin) : AutomationEvent;
 public sealed record StingerCutPoint(bool IsReturn) : AutomationEvent;
+
+/// <summary>The Endora stinger finished playing on the replay output.</summary>
+public sealed record StingerFinished(bool IsReturn) : AutomationEvent;
 public sealed record ClipPlaybackStarted : AutomationEvent;
 public sealed record ClipPlaybackCompleted : AutomationEvent;
 public sealed record PlayoutFinished : AutomationEvent;
@@ -61,6 +64,11 @@ public sealed record StartPlayoutAction(ClipRef Clip, bool WithStingerIn, bool G
 public sealed record ReleaseClipAction(int DelayMs) : AutomationAction;
 public sealed record PlayStingerOutAction : AutomationAction;
 public sealed record StopPlayoutAction : AutomationAction;
+
+/// <summary>Self-keyed luma key of the replay input on a downstream keyer, so the stinger shows over any source.</summary>
+public sealed record DskConfigureAction(int Keyer, int Input, double ClipPercent, double GainPercent) : AutomationAction;
+
+public sealed record DskOnAirAction(int Keyer, bool OnAir) : AutomationAction;
 public sealed record ShowHoldingAction : AutomationAction;
 
 public enum AlertLevel
@@ -85,13 +93,21 @@ public sealed record AutomationOptions(
     AtemTransitionStyle TransitionOutStyle,
     int PrerollMs,
     int LockoutMs,
-    int WaitForProgramTimeoutMs)
+    int WaitForProgramTimeoutMs,
+    bool StingerKey = false,
+    int DskKeyer = 1,
+    double DskClipPercent = 8,
+    double DskGainPercent = 70,
+    int StingerFadeMs = 0,
+    int StingerSwitchDelayFrames = 2)
 {
     public static AutomationOptions From(AppSettings s) => new(
         s.Automation.Enabled, s.Atem.ReplayInput, s.Automation.AutoSwitchIn, s.Automation.StartOnProgramEdge,
         s.Automation.ReturnToLive, s.Automation.TransitionIn, s.Automation.TransitionInStyle,
         s.Automation.TransitionOut, s.Automation.TransitionOutStyle, s.Automation.PrerollMs,
-        s.Automation.LockoutMs, s.Automation.WaitForProgramTimeoutMs);
+        s.Automation.LockoutMs, s.Automation.WaitForProgramTimeoutMs,
+        s.Automation.StingerKey, s.Automation.StingerKeyer, s.Automation.StingerKeyClip, s.Automation.StingerKeyGain,
+        s.Automation.StingerFadeMs, s.Automation.StingerSwitchDelayFrames);
 }
 
 /// <summary>
@@ -121,6 +137,8 @@ public sealed class ReplayStateMachine
     private bool _override;
     private bool _cycleAutoCancelled;
     private bool _returnIssued;
+    private bool _dskOnAir;
+    private bool _stingerOutRunning;
     private long _waitDeadline;
     private long _lockoutUntil;
     private ReplayState _state = ReplayState.DISCONNECTED;
@@ -131,6 +149,9 @@ public sealed class ReplayStateMachine
     public ClipRef? ArmedClip => _armed;
     public ClipRef? PlayingClip => _playing;
     public bool OverrideActive => _override;
+
+    /// <summary>True while Endora has put its stinger key on air.</summary>
+    public bool StingerKeyOnAir => _dskOnAir;
     public bool AtemConnected => _connected;
     public int? ProgramInput => _program;
     public int? PreviewInput => _preview;
@@ -163,6 +184,7 @@ public sealed class ReplayStateMachine
             case EmergencyOverrideRequested ov: OnOverride(ov, a); break;
             case ClearErrorRequested c: OnClearError(c, a); break;
             case StingerCutPoint cp: OnCutPoint(cp, a); break;
+            case StingerFinished sf: OnStingerFinished(sf, nowTicks, a); break;
             case ClipPlaybackCompleted: OnClipCompleted(nowTicks, a); break;
             case PlayoutFinished: break;
             case PlaybackFailed f: Fail($"Playback failed: {f.Reason}", a, stopPlayout: true); break;
@@ -170,6 +192,15 @@ public sealed class ReplayStateMachine
             case Tick: OnTick(nowTicks, a); break;
         }
         RecomputeIdleState();
+
+        // Whenever the replay output is about to stop or show the holding frame, take Endora's key off air first,
+        // so the holding slate is never keyed over the live picture.
+        if (_dskOnAir && a.Any(x => x is StopPlayoutAction or ShowHoldingAction))
+        {
+            a.Insert(0, new DskOnAirAction(_o.DskKeyer, false));
+            _dskOnAir = false;
+            _stingerOutRunning = false;
+        }
         return a;
     }
 
@@ -242,6 +273,10 @@ public sealed class ReplayStateMachine
                 a.Add(new StopPlayoutAction());
                 a.Add(new ShowHoldingAction());
                 FinishCycle(now);
+                break;
+
+            case ReplayState.REPLAY_COMPLETE when edgeOffReplay && _stingerOutRunning:
+                // The stinger OUT keeps playing over the live picture; the cycle ends when it finishes.
                 break;
 
             case ReplayState.REPLAY_COMPLETE when edgeOffReplay:
@@ -332,6 +367,13 @@ public sealed class ReplayStateMachine
             StartPlay(withStinger: stingerIn, gated: true, delayMs: 0, a);
             a.Add(new SetPreviewAction(_o.ReplayInput));
             if (!stingerIn) a.Add(new TransitionAction(_o.TransitionIn, _o.TransitionInStyle));
+            else if (_o.StingerKey)
+            {
+                // The stinger runs keyed over the live picture until its cover point, where the ATEM cuts underneath.
+                a.Add(new DskConfigureAction(_o.DskKeyer, _o.ReplayInput, _o.DskClipPercent, _o.DskGainPercent));
+                a.Add(new DskOnAirAction(_o.DskKeyer, true));
+                _dskOnAir = true;
+            }
             // For the Endora stinger the CUT is sent at the stinger's cover frame (StingerCutPoint).
             _waitDeadline = now + TimeSpan.FromMilliseconds(_o.WaitForProgramTimeoutMs + (stingerIn ? 4000 : 0)).Ticks;
             SetState(ReplayState.WAITING_FOR_PROGRAM);
@@ -378,9 +420,8 @@ public sealed class ReplayStateMachine
             if (_lastLiveInput is { } live)
             {
                 a.Add(new SetPreviewAction(live));
-                a.Add(_o.TransitionOut == TransitionMode.EndoraStinger
-                    ? new PlayStingerOutAction()
-                    : new TransitionAction(_o.TransitionOut == TransitionMode.AtemCut ? TransitionMode.AtemCut : TransitionMode.AtemAuto, _o.TransitionOutStyle));
+                if (_o.TransitionOut == TransitionMode.EndoraStinger) StingerOut(a);
+                else a.Add(new TransitionAction(_o.TransitionOut == TransitionMode.AtemCut ? TransitionMode.AtemCut : TransitionMode.AtemAuto, _o.TransitionOutStyle));
                 _returnIssued = true;
                 if (_state == ReplayState.PLAYING)
                 {
@@ -481,13 +522,47 @@ public sealed class ReplayStateMachine
         SetState(ReplayState.LIVE_READY);
     }
 
+    private void StingerOut(List<AutomationAction> a)
+    {
+        if (_o.StingerKey) a.Add(new DskConfigureAction(_o.DskKeyer, _o.ReplayInput, _o.DskClipPercent, _o.DskGainPercent));
+        a.Add(new PlayStingerOutAction());
+        _stingerOutRunning = true;
+    }
+
     private void OnCutPoint(StingerCutPoint cp, List<AutomationAction> a)
     {
         if (!CanAutoSwitch) return;
         if (!cp.IsReturn && _state == ReplayState.WAITING_FOR_PROGRAM && _program != _o.ReplayInput)
             a.Add(new CutAction());
         else if (cp.IsReturn && _state == ReplayState.REPLAY_COMPLETE && _program == _o.ReplayInput)
+        {
+            if (_o.StingerKey)
+            {
+                // Key first: keying the replay input over itself changes nothing, so the CUT underneath is invisible.
+                a.Add(new DskOnAirAction(_o.DskKeyer, true));
+                _dskOnAir = true;
+            }
             a.Add(new CutAction());
+        }
+    }
+
+    private void OnStingerFinished(StingerFinished sf, long now, List<AutomationAction> a)
+    {
+        if (!sf.IsReturn)
+        {
+            // Program is now on the replay input, where the key shows the same picture; take it off quietly.
+            if (_dskOnAir && _connected)
+            {
+                a.Add(new DskOnAirAction(_o.DskKeyer, false));
+                _dskOnAir = false;
+            }
+            return;
+        }
+        if (!_stingerOutRunning) return;
+        _stingerOutRunning = false;
+        if (_state != ReplayState.REPLAY_COMPLETE) return;
+        a.Add(new ShowHoldingAction());
+        if (!(_connected && _program == _o.ReplayInput)) FinishCycle(now);
     }
 
     private void OnClipCompleted(long now, List<AutomationAction> a)
@@ -509,9 +584,8 @@ public sealed class ReplayStateMachine
             if (_lastLiveInput is { } live)
             {
                 a.Add(new SetPreviewAction(live));
-                a.Add(_o.TransitionOut == TransitionMode.EndoraStinger
-                    ? new PlayStingerOutAction()
-                    : new TransitionAction(_o.TransitionOut, _o.TransitionOutStyle));
+                if (_o.TransitionOut == TransitionMode.EndoraStinger) StingerOut(a);
+                else a.Add(new TransitionAction(_o.TransitionOut, _o.TransitionOutStyle));
                 _returnIssued = true;
                 _waitDeadline = now + TimeSpan.FromMilliseconds(_o.WaitForProgramTimeoutMs + 4000).Ticks;
             }
@@ -563,6 +637,7 @@ public sealed class ReplayStateMachine
     {
         _playing = null;
         _returnIssued = false;
+        _stingerOutRunning = false;
         _cycleAutoCancelled = false;
         _lockoutUntil = now + TimeSpan.FromMilliseconds(_o.LockoutMs).Ticks;
         SetState(_armed is not null ? ReplayState.REPLAY_ARMED : IdleState());

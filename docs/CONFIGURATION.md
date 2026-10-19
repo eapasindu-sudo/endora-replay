@@ -13,7 +13,7 @@ validates.
 | `sources[]` | `sourceId` 1–8 cameras, `0` Program; `enabled`, `name`, `backend`, `deviceId` | A missing device is shown as NOT FOUND, never replaced by another device. `Simulated` backend = test pattern. |
 | `buffer` | `seconds` (120), `jpegQuality` (70/90/97), `dataFolder`, `minFreeDiskGb` | Clips are refused below the free-space limit. |
 | `atem` | `backend` (`NetworkProtocol`, `BlackmagicSdk`, `Simulated`), `address`, `replayInput` (8) | `replayInput` is the ATEM input wired to Endora's HDMI output. |
-| `automation` | `enabled` (**false**), `autoSwitchIn`, `startOnProgramEdge`, `returnToLive`, `transitionIn/Out`, styles, stinger files, `stingerCutFrame`, `lockoutMs`, `waitForProgramTimeoutMs` | With `enabled: false` Endora only switches when the operator presses LIVE. |
+| `automation` | `enabled` (**false**), `autoSwitchIn`, `startOnProgramEdge`, `returnToLive`, `transitionIn/Out`, styles, stinger files, `stingerKey` (DSK luma key over live), `stingerKeyer`, `stingerKeyClip`, `stingerKeyGain`, `stingerFadeMs`, `lockoutMs`, `waitForProgramTimeoutMs` | With `enabled: false` Endora only switches when the operator presses LIVE. |
 | `output` | `kind` (`Display`, `Simulated`), `displayDevice` (`\\.\DISPLAY2`), `holding` (`Slate`, `LastFrame`, `Black`) | Replay is blocked if the display is missing, primary, or the wrong mode. |
 | `remote` | `enabled`, `port` (8686), `allowTransport`, `accessCode` | The access code is in the QR link; a new code disconnects every phone. |
 | `updates` | `checkAutomatically`, `repositoryUrl`, `includePrereleases` | Updates install only on Restart & install. |

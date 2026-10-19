@@ -2,6 +2,7 @@ using EndoraReplay.Core.Abstractions;
 using EndoraReplay.Core.Model;
 using LibAtem.Commands;
 using LibAtem.Commands.DeviceProfile;
+using LibAtem.Commands.DownstreamKey;
 using LibAtem.Commands.MixEffects;
 using LibAtem.Commands.MixEffects.Transition;
 using LibAtem.Commands.Settings;
@@ -125,6 +126,14 @@ public sealed class LibAtemSwitcher : IAtemSwitcher
                         _snapshot = _snapshot with { InputNames = names };
                         changed = true;
                         break;
+                    case DownstreamKeyStateGetV8Command d:
+                        SetDsk((int)d.Index + 1, d.OnAir);
+                        changed = true;
+                        break;
+                    case DownstreamKeyStateGetCommand d:
+                        SetDsk((int)d.Index + 1, d.OnAir);
+                        changed = true;
+                        break;
                     case VideoModeGetCommand vm:
                         _snapshot = _snapshot with { VideoMode = vm.VideoMode.ToString() };
                         changed = true;
@@ -133,6 +142,39 @@ public sealed class LibAtemSwitcher : IAtemSwitcher
             }
         }
         if (changed && Snapshot.Connected) StateChanged?.Invoke(Snapshot);
+    }
+
+    private void SetDsk(int keyer, bool onAir)
+    {
+        var on = new HashSet<int>(_snapshot.DownstreamKeysOnAir ?? new HashSet<int>());
+        if (onAir) on.Add(keyer); else on.Remove(keyer);
+        _snapshot = _snapshot with { DownstreamKeysOnAir = on };
+    }
+
+    public Task ConfigureDownstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent)
+    {
+        var id = (DownstreamKeyId)(keyer - 1);
+        Send(new DownstreamKeyFillSourceSetCommand { Index = id, FillSource = (VideoSource)input });
+        Send(new DownstreamKeyCutSourceSetCommand { Index = id, CutSource = (VideoSource)input });
+        Send(new DownstreamKeyGeneralSetCommand
+        {
+            Index = id,
+            Mask = DownstreamKeyGeneralSetCommand.MaskFlags.PreMultipliedKey | DownstreamKeyGeneralSetCommand.MaskFlags.Clip
+                | DownstreamKeyGeneralSetCommand.MaskFlags.Gain | DownstreamKeyGeneralSetCommand.MaskFlags.Invert,
+            PreMultipliedKey = false,
+            Clip = clipPercent,
+            Gain = gainPercent,
+            Invert = false,
+        });
+        Send(new DownstreamKeyMaskSetCommand { Index = id, Mask = DownstreamKeyMaskSetCommand.MaskFlags.MaskEnabled, MaskEnabled = false });
+        Send(new DownstreamKeyTieSetCommand { Index = id, Tie = false });
+        return Task.CompletedTask;
+    }
+
+    public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir)
+    {
+        Send(new DownstreamKeyOnAirSetCommand { Index = (DownstreamKeyId)(keyer - 1), OnAir = onAir });
+        return Task.CompletedTask;
     }
 
     public Task SetPreviewInputAsync(int input)

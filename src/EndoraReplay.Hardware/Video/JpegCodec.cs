@@ -60,14 +60,54 @@ public sealed class FileStingerProvider : IStingerProvider
     public string? LoadedInFile { get; private set; }
     public string? LoadedOutFile { get; private set; }
 
+    /// <summary>How much of the picture the IN / OUT stinger covers at its cover point (0..1). Below about 0.97 the ATEM cut may show.</summary>
+    public double InCoverage { get; private set; }
+    public double OutCoverage { get; private set; }
+
     public (IFrameSequence Frames, int CutFrame)? Get(bool isReturn) => isReturn ? _out ?? _in : _in;
 
-    public void Load(string? inFile, string? outFile, int cutFrame, VideoFormat format)
+    /// <summary>Loads the IN and OUT stingers and finds each one's cover point. With no OUT file the IN stinger is used both ways.</summary>
+    public void Load(string? inFile, string? outFile, VideoFormat format, IFrameCompositor compositor)
     {
-        _in = string.IsNullOrWhiteSpace(inFile) ? null : (LoadFile(inFile, format), cutFrame);
-        LoadedInFile = inFile;
-        _out = string.IsNullOrWhiteSpace(outFile) ? null : (LoadFile(outFile, format), cutFrame);
-        LoadedOutFile = outFile;
+        _in = null;
+        _out = null;
+        LoadedInFile = null;
+        LoadedOutFile = null;
+        InCoverage = OutCoverage = 0;
+        if (!string.IsNullOrWhiteSpace(inFile))
+        {
+            var f = LoadFile(inFile, format);
+            var (cut, cov) = FindCoverPoint(f, compositor);
+            _in = (f, cut);
+            InCoverage = cov;
+            LoadedInFile = inFile;
+        }
+        if (!string.IsNullOrWhiteSpace(outFile))
+        {
+            var f = LoadFile(outFile, format);
+            var (cut, cov) = FindCoverPoint(f, compositor);
+            _out = (f, cut);
+            OutCoverage = cov;
+            LoadedOutFile = outFile;
+        }
+        else if (_in is not null)
+        {
+            OutCoverage = InCoverage;
+            LoadedOutFile = inFile;
+        }
+    }
+
+    /// <summary>
+    /// The cover point is the first frame of the stretch where the stinger covers the most picture. Returns that frame
+    /// and how much it covers.
+    /// </summary>
+    public static (int Frame, double Coverage) FindCoverPoint(IFrameSequence frames, IFrameCompositor compositor)
+    {
+        var cov = new double[frames.Count];
+        Parallel.For(0, frames.Count, i => cov[i] = compositor.Coverage(frames.Read(i)));
+        var max = cov.Max();
+        var first = Array.FindIndex(cov, c => c >= max - 0.005);
+        return (first, max);
     }
 
     public static IFrameSequence LoadFile(string path, VideoFormat format)

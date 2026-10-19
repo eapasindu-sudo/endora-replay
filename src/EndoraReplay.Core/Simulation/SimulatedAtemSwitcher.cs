@@ -74,6 +74,30 @@ public sealed class SimulatedAtemSwitcher : IAtemSwitcher
         return Task.CompletedTask;
     }
 
+    /// <summary>Last downstream key configuration: keyer → input.</summary>
+    public IReadOnlyDictionary<int, int> DownstreamKeyInputs { get { lock (_gate) return new Dictionary<int, int>(_dskInputs); } }
+
+    private readonly Dictionary<int, int> _dskInputs = [];
+
+    public Task ConfigureDownstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent)
+    {
+        EnsureConnected();
+        lock (_gate) _dskInputs[keyer] = input;
+        return Task.CompletedTask;
+    }
+
+    public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir)
+    {
+        EnsureConnected();
+        Update(s =>
+        {
+            var on = new HashSet<int>(s.DownstreamKeysOnAir ?? new HashSet<int>());
+            if (onAir) on.Add(keyer); else on.Remove(keyer);
+            return s with { DownstreamKeysOnAir = on };
+        });
+        return Task.CompletedTask;
+    }
+
     private void Swap() => Update(s => s with
     {
         ProgramInput = s.PreviewInput,

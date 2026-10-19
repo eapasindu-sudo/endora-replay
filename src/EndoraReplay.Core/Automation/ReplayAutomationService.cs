@@ -8,7 +8,7 @@ namespace EndoraReplay.Core.Automation;
 /// <summary>Stinger material for <see cref="TransitionMode.EndoraStinger"/>.</summary>
 public interface IStingerProvider
 {
-    /// <summary>Returns the stinger frames and the frame index where the picture is fully covered, or null if none is loaded.</summary>
+    /// <summary>Returns the stinger frames and the frame index where the picture is fully covered (found automatically), or null if none is loaded.</summary>
     (IFrameSequence Frames, int CutFrame)? Get(bool isReturn);
 }
 
@@ -26,6 +26,8 @@ public sealed class ReplayAutomationService : IAsyncDisposable
     private readonly Func<ClipRef, IFrameSequence> _openClip;
     private readonly DiagnosticsService _diag;
     private readonly IClock _clock;
+    private readonly IFrameCompositor? _compositor;
+    private VideoFormat _format;
     private readonly Channel<AutomationEvent> _events = Channel.CreateUnbounded<AutomationEvent>(new UnboundedChannelOptions { SingleReader = true });
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _loop;
@@ -38,8 +40,12 @@ public sealed class ReplayAutomationService : IAsyncDisposable
         IStingerProvider stingers,
         Func<ClipRef, IFrameSequence> openClip,
         DiagnosticsService diagnostics,
-        IClock clock)
+        IClock clock,
+        IFrameCompositor? compositor = null,
+        VideoFormat? format = null)
     {
+        _compositor = compositor;
+        _format = format ?? VideoFormat.Hd1080p50;
         _sm = new ReplayStateMachine(options);
         _playback = playback;
         _atem = atem;
@@ -56,7 +62,11 @@ public sealed class ReplayAutomationService : IAsyncDisposable
 
         _atem.StateChanged += s => Post(new AtemStateEvent(s.Connected, s.ProgramInput, s.PreviewInput));
         _playback.SegmentStarted += k => { if (k == PlayoutSegmentKind.Clip) Post(new ClipPlaybackStarted()); };
-        _playback.SegmentCompleted += k => { if (k == PlayoutSegmentKind.Clip) Post(new ClipPlaybackCompleted()); };
+        _playback.SegmentCompleted += k =>
+        {
+            if (k == PlayoutSegmentKind.Clip) Post(new ClipPlaybackCompleted());
+            else Post(new StingerFinished(k == PlayoutSegmentKind.StingerOut));
+        };
         _playback.CutPointReached += k =>
         {
             if (k == PlayoutSegmentKind.StingerIn) Post(new StingerCutPoint(false));
@@ -75,6 +85,9 @@ public sealed class ReplayAutomationService : IAsyncDisposable
     public ClipRef? ArmedClip => _sm.ArmedClip;
     public ClipRef? PlayingClip => _sm.PlayingClip;
     public bool OverrideActive => _sm.OverrideActive;
+    public bool StingerKeyOnAir => _sm.StingerKeyOnAir;
+
+    public void SetFormat(VideoFormat format) => _format = format;
     public string? ErrorReason => _sm.ErrorReason;
     public AutomationOptions Options => _sm.Options;
 
@@ -153,7 +166,11 @@ public sealed class ReplayAutomationService : IAsyncDisposable
                 case PlayStingerOutAction:
                     if (_stingers.Get(isReturn: true) is { } so)
                     {
-                        _playback.Start([new PlayoutSegment(PlayoutSegmentKind.StingerOut, so.Frames, 1.0, so.CutFrame, Label: "stinger out")]);
+                        // Blend over whatever the replay output shows now (the last replay frame).
+                        var o = _sm.Options;
+                        var seq = new StingerSequence(so.Frames, StingerDirection.Out, so.CutFrame, o.StingerSwitchDelayFrames, 0,
+                            FadeFrames(o), _playback.Output.LastFrame, _compositor, _format);
+                        _playback.Start([new PlayoutSegment(PlayoutSegmentKind.StingerOut, seq, 1.0, seq.CutPointIndex, Label: "stinger out")]);
                     }
                     else
                     {
@@ -169,6 +186,14 @@ public sealed class ReplayAutomationService : IAsyncDisposable
 
                 case ShowHoldingAction:
                     _playback.ShowHolding();
+                    break;
+
+                case DskConfigureAction d:
+                    await _atem.ConfigureDownstreamKeyAsync(d.Keyer, d.Input, d.ClipPercent, d.GainPercent).ConfigureAwait(false);
+                    break;
+
+                case DskOnAirAction d:
+                    await _atem.SetDownstreamKeyOnAirAsync(d.Keyer, d.OnAir).ConfigureAwait(false);
                     break;
 
                 // Switcher actions: the state machine only emits these when switching is permitted.
@@ -189,6 +214,15 @@ public sealed class ReplayAutomationService : IAsyncDisposable
                     break;
             }
         }
+        catch (Exception e) when (action is DskConfigureAction or DskOnAirAction)
+        {
+            // A failed key command must not stop the replay; the operator can fix the key on the ATEM panel.
+            var msg = action is DskOnAirAction { OnAir: false } d
+                ? $"Could not take DSK {d.Keyer} off air: {e.Message}. Turn it off on the ATEM."
+                : $"Stinger key command failed: {e.Message}";
+            _diag.Error(LogCategory.Automation, msg);
+            Alert?.Invoke(AlertLevel.Critical, msg);
+        }
         catch (Exception e) when (action is SetPreviewAction or CutAction or TransitionAction or PlayStingerOutAction)
         {
             Post(new SwitcherCommandFailed(e.Message));
@@ -204,18 +238,31 @@ public sealed class ReplayAutomationService : IAsyncDisposable
         var segments = new List<PlayoutSegment>();
         if (sp.WithStingerIn)
         {
-            if (_stingers.Get(isReturn: false) is { } si)
-                segments.Add(new PlayoutSegment(PlayoutSegmentKind.StingerIn, si.Frames, 1.0, si.CutFrame, Label: "stinger in"));
-            else
+            if (_stingers.Get(isReturn: false) is not { } si)
                 throw new InvalidOperationException("Endora stinger IN selected but no stinger is loaded.");
         }
 
         var clip = _openClip(sp.Clip);
+        if (sp.WithStingerIn && _stingers.Get(isReturn: false) is { } stin)
+        {
+            var o = _sm.Options;
+            EncodedFrame? first = null;
+            try { first = clip.Read(0); } catch (FrameUnavailableException) { }
+            // With the key, a few black frames first so the key is on air before the stinger appears.
+            var seq = new StingerSequence(stin.Frames, StingerDirection.In, stin.CutFrame, o.StingerSwitchDelayFrames,
+                o.StingerKey ? KeyLeadFrames : 0, FadeFrames(o), first, _compositor, _format);
+            segments.Add(new PlayoutSegment(PlayoutSegmentKind.StingerIn, seq, 1.0, seq.CutPointIndex, Label: "stinger in"));
+        }
         _playback.SetSpeed(sp.Clip.Speed);
         segments.Add(new PlayoutSegment(PlayoutSegmentKind.Clip, clip, sp.Clip.Speed, WaitForRelease: sp.Gated, Label: sp.Clip.Description));
         if (!sp.WithStingerIn) _playback.ShowHolding();
         _playback.Start(segments, sp.DelayMs);
     }
+
+    /// <summary>Black frames before a keyed stinger IN, so the ATEM key is on air before the stinger appears.</summary>
+    public const int KeyLeadFrames = 4;
+
+    private int FadeFrames(AutomationOptions o) => (int)Math.Round(o.StingerFadeMs / 1000.0 * _format.FramesPerSecond);
 
     public async ValueTask DisposeAsync()
     {

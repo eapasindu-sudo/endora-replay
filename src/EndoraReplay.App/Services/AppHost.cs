@@ -32,6 +32,7 @@ public sealed class AppHost : IAsyncDisposable
     public ReplayPlaybackService Playback { get; private set; } = null!;
     public AtemSwitcherService Atem { get; private set; } = null!;
     public FileStingerProvider Stingers { get; } = new();
+    public LumaKeyCompositor StingerCompositor { get; } = new(8, 70);
     public ReplayAutomationService Automation { get; private set; } = null!;
     public OperatorController Operator { get; private set; } = null!;
     public RemoteServer Remote { get; private set; } = null!;
@@ -78,7 +79,7 @@ public sealed class AppHost : IAsyncDisposable
 
         OperatorController? op = null;
         Automation = new ReplayAutomationService(AutomationOptions.From(s), Playback, Atem, Stingers,
-            r => op!.OpenClip(r), Diagnostics, Clock);
+            r => op!.OpenClip(r), Diagnostics, Clock, StingerCompositor, s.Format);
         op = new OperatorController(s, Clock, Capture, Buffers, Clips, Playback, Automation, Diagnostics, () => Atem.Snapshot);
         Operator = op;
         Capture.RecordingChanged += rec => Automation.Post(new RecordingStateEvent(rec));
@@ -95,7 +96,11 @@ public sealed class AppHost : IAsyncDisposable
         var a = Settings.Automation;
         try
         {
-            Stingers.Load(a.StingerInFile, a.StingerOutFile, a.StingerCutFrame, Settings.Format);
+            StingerCompositor.Configure(a.StingerKeyClip, a.StingerKeyGain);
+            Stingers.Load(a.StingerInFile, a.StingerOutFile, Settings.Format, StingerCompositor);
+            foreach (var (name, cov) in new[] { ("IN", Stingers.InCoverage), ("OUT", Stingers.OutCoverage) })
+                if (cov is > 0 and < 0.97)
+                    Diagnostics.Warn(LogCategory.Automation, $"Stinger {name} covers only {cov:P0} of the picture at its fullest; the ATEM cut may be visible.");
             if (a.StingerInFile is not null) Diagnostics.Info(LogCategory.Automation, $"Stinger loaded: {Path.GetFileName(a.StingerInFile)}");
         }
         catch (Exception e)

@@ -49,6 +49,9 @@ public sealed class AppSettings
         if (Buffer.Seconds is < 5 or > 3600) problems.Add("Buffer length must be between 5 and 3600 seconds.");
         if (Buffer.JpegQuality is < 30 or > 100) problems.Add("Recording quality must be between 30 and 100.");
         if (Remote.Port is < 1024 or > 65535) problems.Add("Remote port must be between 1024 and 65535.");
+        if (Automation.StingerKeyer is < 1 or > 2) problems.Add("Stinger keyer must be DSK 1 or DSK 2.");
+        if (Automation.StingerKeyClip is < 0 or > 100 || Automation.StingerKeyGain is < 0 or > 100) problems.Add("Stinger key clip and gain must be 0–100%.");
+        if (Automation.StingerFadeMs is < 0 or > 2000) problems.Add("Stinger fade must be 0–2000 ms.");
         if (Automation.TransitionIn == TransitionMode.EndoraStinger && string.IsNullOrWhiteSpace(Automation.StingerInFile))
             problems.Add("Endora stinger IN is selected but no stinger file is configured.");
         if (Automation.TransitionOut == TransitionMode.EndoraStinger && string.IsNullOrWhiteSpace(Automation.StingerOutFile ?? Automation.StingerInFile))
@@ -167,8 +170,26 @@ public sealed class AutomationSettings
 
     public string? StingerOutFile { get; set; }
 
-    /// <summary>Frame index at which the stinger fully covers the picture; the ATEM is cut here.</summary>
-    public int StingerCutFrame { get; set; } = 12;
+    /// <summary>
+    /// Show the whole stinger over the live picture with a downstream luma key of the replay input. The stinger
+    /// video must be on a black background. The cover point where the ATEM cuts is found automatically.
+    /// </summary>
+    public bool StingerKey { get; set; } = true;
+
+    /// <summary>ATEM downstream keyer Endora may use (1 or 2).</summary>
+    public int StingerKeyer { get; set; } = 1;
+
+    /// <summary>Luma key clip (%): darker than this is transparent. Endora's own blend over the replay uses the same value.</summary>
+    public double StingerKeyClip { get; set; } = 8;
+
+    /// <summary>Luma key gain (%): higher gives a harder edge.</summary>
+    public double StingerKeyGain { get; set; } = 70;
+
+    /// <summary>Crossfade between the stinger and the replay at the stinger's ends, in ms. 0 = off.</summary>
+    public int StingerFadeMs { get; set; } = 200;
+
+    /// <summary>Frames after the cover point before Endora's output changes from the plain stinger to the blend (allows for the ATEM cut latency).</summary>
+    public int StingerSwitchDelayFrames { get; set; } = 2;
 
     public int PrerollMs { get; set; } = 0;
     public int LockoutMs { get; set; } = 1500;

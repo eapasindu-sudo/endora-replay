@@ -40,7 +40,12 @@
     "transitionOutStyle": "Mix",
     "stingerInFile": "D:\\EndoraReplay\\stingers\\endora-stinger.mp4",
     "stingerOutFile": null,
-    "stingerCutFrame": 12,
+    // Whole stinger over live with ATEM DSK 1 luma key (stinger on a black background). The cover point is found automatically.
+    "stingerKey": true,
+    "stingerKeyer": 1,
+    "stingerKeyClip": 8,
+    "stingerKeyGain": 70,
+    "stingerFadeMs": 200,
     "prerollMs": 0,
     "lockoutMs": 1500,
     "waitForProgramTimeoutMs": 5000

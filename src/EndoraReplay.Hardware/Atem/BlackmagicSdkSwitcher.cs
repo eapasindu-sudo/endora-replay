@@ -181,6 +181,34 @@ public sealed class BlackmagicSdkSwitcher : IAtemSwitcher
     public Task PerformAutoTransitionAsync() => Invoke(() => _me!.PerformAutoTransition());
     public Task PerformCutAsync() => Invoke(() => _me!.PerformCut());
 
+    private IBMDSwitcherDownstreamKey DownstreamKey(int keyer)
+    {
+        var iid = typeof(IBMDSwitcherDownstreamKeyIterator).GUID;
+        _switcher!.CreateIterator(ref iid, out var ptr);
+        var it = (IBMDSwitcherDownstreamKeyIterator)Marshal.GetObjectForIUnknown(ptr);
+        for (var i = 1; ; i++)
+        {
+            it.Next(out var dsk);
+            if (dsk is null) throw new InvalidOperationException($"This switcher has no downstream keyer {keyer}.");
+            if (i == keyer) return dsk;
+        }
+    }
+
+    public Task ConfigureDownstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent) => Invoke(() =>
+    {
+        var dsk = DownstreamKey(keyer);
+        dsk.SetInputFill(input);
+        dsk.SetInputCut(input);
+        dsk.SetPreMultiplied(0);
+        dsk.SetClip(clipPercent / 100.0);
+        dsk.SetGain(gainPercent / 100.0);
+        dsk.SetInverse(0);
+        dsk.SetMasked(0);
+        dsk.SetTie(0);
+    });
+
+    public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir) => Invoke(() => DownstreamKey(keyer).SetOnAir(onAir ? 1 : 0));
+
     public async Task DisconnectAsync()
     {
         if (_pollCts is not null)
@@ -217,6 +245,8 @@ public sealed class BlackmagicSdkSwitcher : IAtemSwitcher
     public Task SetNextTransitionStyleAsync(AtemTransitionStyle style) => throw new NotSupportedException(UnavailableReason);
     public Task PerformAutoTransitionAsync() => throw new NotSupportedException(UnavailableReason);
     public Task PerformCutAsync() => throw new NotSupportedException(UnavailableReason);
+    public Task ConfigureDownstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent) => throw new NotSupportedException(UnavailableReason);
+    public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir) => throw new NotSupportedException(UnavailableReason);
 
     public Task DisconnectAsync()
     {

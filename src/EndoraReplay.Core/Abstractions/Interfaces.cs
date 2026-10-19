@@ -92,6 +92,26 @@ public interface IAtemSwitcher : IAsyncDisposable
     Task SetNextTransitionStyleAsync(AtemTransitionStyle style);
     Task PerformAutoTransitionAsync();
     Task PerformCutAsync();
+
+    /// <summary>Sets a downstream keyer (1-based) to a self-keyed luma key of <paramref name="input"/>. Clip and gain are percentages.</summary>
+    Task ConfigureDownstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent);
+
+    Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir);
+}
+
+/// <summary>Blends stinger frames over replay frames on Endora's own output.</summary>
+public interface IFrameCompositor
+{
+    /// <summary>
+    /// Keys <paramref name="top"/> over <paramref name="under"/> using the luma key (dark = transparent), then mixes the result
+    /// towards <paramref name="under"/> by <paramref name="fadeToUnder"/> (0 = keyed stinger, 1 = only the replay frame).
+    /// </summary>
+    EncodedFrame Composite(EncodedFrame top, EncodedFrame under, double fadeToUnder);
+
+    /// <summary>Fraction of the picture the luma key treats as fully opaque (0..1).</summary>
+    double Coverage(EncodedFrame top);
+
+    EncodedFrame Black(VideoFormat format);
 }
 
 /// <summary>An ordered, random-access set of frames to play (from the rolling buffer or a saved clip).</summary>

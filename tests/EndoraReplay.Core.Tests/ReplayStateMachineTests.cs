@@ -340,6 +340,49 @@ public class ReplayStateMachineTests
     }
 
     [Fact]
+    public void Stop_during_keyed_stinger_takes_the_key_off_before_the_holding_frame()
+    {
+        var sm = Ready(Options(tin: TransitionMode.EndoraStinger, tout: TransitionMode.EndoraStinger) with { StingerKey = true });
+        Send(sm, new ArmRequested(Clip1));
+        var a = Send(sm, new ReplayRequested("test"));
+        Assert.Contains(a, x => x is DskOnAirAction { OnAir: true });
+        Assert.True(sm.StingerKeyOnAir);
+
+        a = Send(sm, new StopRequested("test"));
+        Assert.IsType<DskOnAirAction>(a[0]);
+        Assert.False(((DskOnAirAction)a[0]).OnAir);
+        Assert.Contains(a, x => x is ShowHoldingAction);
+        Assert.False(sm.StingerKeyOnAir);
+    }
+
+    [Fact]
+    public void Keyed_stinger_out_keeps_playing_after_the_cut_and_ends_the_cycle_when_finished()
+    {
+        var sm = Ready(Options(tin: TransitionMode.EndoraStinger, tout: TransitionMode.EndoraStinger) with { StingerKey = true });
+        Send(sm, new ArmRequested(Clip1));
+        Send(sm, new ReplayRequested("test"));
+        Send(sm, new StingerCutPoint(false));
+        Send(sm, new AtemStateEvent(true, Replay, 2));
+        Assert.Contains(Send(sm, new StingerFinished(false)), x => x is DskOnAirAction { OnAir: false });
+
+        var a = Send(sm, new ClipPlaybackCompleted());
+        Assert.Contains(a, x => x is DskConfigureAction { Input: Replay });
+        Assert.Contains(a, x => x is PlayStingerOutAction);
+
+        a = Send(sm, new StingerCutPoint(true));
+        Assert.IsType<DskOnAirAction>(a[0]);
+        Assert.IsType<CutAction>(a[1]);
+        a = Send(sm, new AtemStateEvent(true, 2, Replay));
+        Assert.DoesNotContain(a, x => x is StopPlayoutAction or ShowHoldingAction);
+        Assert.Equal(ReplayState.REPLAY_COMPLETE, sm.State);
+
+        a = Send(sm, new StingerFinished(true));
+        Assert.Equal(new DskOnAirAction(1, false), a[0]);
+        Assert.Contains(a, x => x is ShowHoldingAction);
+        Assert.Equal(ReplayState.RECORDING, sm.State);
+    }
+
+    [Fact]
     public void Replay_with_autoswitch_off_waits_for_operator_cut()
     {
         var sm = Ready(Options(autoIn: false));

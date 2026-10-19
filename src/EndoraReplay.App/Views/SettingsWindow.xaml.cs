@@ -334,12 +334,31 @@ public partial class SettingsWindow : Window
             Field(tr, "Stinger video (in)", FilePicker(m.StingerInFile, "Video|*.mp4;*.mov;*.avi|All files|*.*", v => { m.StingerInFile = v; Changed(); }), null);
             Field(tr, "Stinger video (out)", FilePicker(m.StingerOutFile, "Video|*.mp4;*.mov;*.avi|All files|*.*", v => { m.StingerOutFile = v; Changed(); }),
                 "Leave empty to use the same stinger both ways.");
-            Field(tr, "Cut frame", IntBox(m.StingerCutFrame, v => { m.StingerCutFrame = v; Changed(); }),
-                "Frame where the stinger fully covers the picture. Endora sends CUT to the ATEM on this frame.");
-            var stinger = _host.Stingers.Get(isReturn: false);
-            tr.Children.Add(Note(stinger is null ? "No stinger loaded yet. Apply to load the file."
-                : $"Loaded: {Path.GetFileName(_host.Stingers.LoadedInFile)} · {stinger.Value.Frames.Count} frames, cut at frame {stinger.Value.CutFrame}.",
-                stinger is null ? "Amber" : "Green"));
+            tr.Children.Add(Note("Endora finds the point where the stinger covers the whole picture by itself and cuts the ATEM there, so the whole stinger plays in and out.", "Dim"));
+            Toggle(tr, "Show the stinger over live (DSK key)", m.StingerKey, v => { m.StingerKey = v; Changed(); Rebuild(); },
+                "Endora puts its replay input on an ATEM downstream key (luma) so the stinger appears over the live camera, then cuts underneath. The stinger video must be on a black background.");
+            if (m.StingerKey)
+            {
+                Field(tr, "Downstream keyer", Combo(new[] { ("DSK 1", 1), ("DSK 2", 2) }, m.StingerKeyer, v => { m.StingerKeyer = v; Changed(); }),
+                    "Endora takes over this keyer while a stinger plays. Don't use it for graphics at the same time.");
+                Field(tr, "Key clip (%)", IntBox((int)Math.Round(m.StingerKeyClip), v => { m.StingerKeyClip = v; Changed(); }), "Darker than this is transparent. Raise it if the black background shows.");
+                Field(tr, "Key gain (%)", IntBox((int)Math.Round(m.StingerKeyGain), v => { m.StingerKeyGain = v; Changed(); }), "Higher gives harder edges.");
+            }
+            Field(tr, "Fade (ms)", IntBox(m.StingerFadeMs, v => { m.StingerFadeMs = v; Changed(); }),
+                "Fades between the stinger and the replay at the stinger's start and end, so the end never goes black. 0 turns it off.");
+            foreach (var (isReturn, label, file, cov) in new[]
+                     {
+                         (false, "In", _host.Stingers.LoadedInFile, _host.Stingers.InCoverage),
+                         (true, "Out", _host.Stingers.LoadedOutFile, _host.Stingers.OutCoverage),
+                     })
+            {
+                var st = _host.Stingers.Get(isReturn);
+                var fps = SafeFormat()?.FramesPerSecond ?? 50;
+                tr.Children.Add(st is null
+                    ? Note($"{label}: no stinger loaded. Apply to load the file.", "Amber")
+                    : Note($"{label}: {Path.GetFileName(file)} · {st.Value.Frames.Count / fps:0.00} s · covers {cov:P0} at {st.Value.CutFrame / fps:0.00} s"
+                           + (cov < 0.97 ? " · never fully covers the picture, so the cut may show" : ""), cov < 0.97 ? "Amber" : "Green"));
+            }
         }
 
         var timing = Card(root, "Timing and safety");
