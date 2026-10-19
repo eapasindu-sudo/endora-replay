@@ -102,6 +102,13 @@ public interface IAtemSwitcher : IAsyncDisposable
     Task ConfigureDownstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent);
 
     Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir);
+
+    /// <summary>Sets upstream keyer (1-based, M/E 1) to a self-keyed luma key of <paramref name="input"/>, not flying, no mask.</summary>
+    Task ConfigureUpstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent) =>
+        throw new NotSupportedException("This switcher connection cannot control upstream keys.");
+
+    Task SetUpstreamKeyOnAirAsync(int keyer, bool onAir) =>
+        throw new NotSupportedException("This switcher connection cannot control upstream keys.");
 }
 
 /// <summary>Blends stinger frames over replay frames on Endora's own output.</summary>

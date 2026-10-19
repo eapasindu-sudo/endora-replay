@@ -13,7 +13,7 @@ namespace EndoraReplay.App.Output;
 
 /// <summary>
 /// Shows the scoreboard web page full screen on its own display (an HDMI output wired to an ATEM input) on a black
-/// background, so the ATEM DSK 2 luma key keys out everything the page leaves transparent. The page reloads by itself
+/// background, so the ATEM luma key (DSK 2 or upstream key 1) keys out everything the page leaves transparent. The page reloads by itself
 /// if it fails to load. Runs on the main UI thread. HARDWARE PATH: not yet tested on the target PC and ATEM.
 /// </summary>
 public sealed class ScoreboardOutput(DiagnosticsService diagnostics, string dataFolder)

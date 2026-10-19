@@ -66,7 +66,7 @@ public sealed class OperatorController : IRemoteHandler
     /// <summary>Raised (any thread) when operator-visible state changes.</summary>
     public event Action? Changed;
 
-    /// <summary>Puts the scoreboard (ATEM DSK 2) on or off air; set by the app host.</summary>
+    /// <summary>Puts the scoreboard (ATEM DSK 2 or upstream key 1) on or off air; set by the app host.</summary>
     public Func<string?>? ScoreboardToggle { get; set; }
 
     /// <summary>The UI should open the tag picker for this clip.</summary>

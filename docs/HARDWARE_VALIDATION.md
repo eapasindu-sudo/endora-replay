@@ -82,6 +82,7 @@ With **Endora stinger video**:
 - [ ] SCOREBOARD / F5 puts DSK 2 on air over Program and takes it off; the ATEM panel shows the same state.
 - [ ] Only the black background is keyed out; dark parts of the scoreboard stay solid.
 - [ ] A stinger (DSK 1) plays correctly while the scoreboard is on air.
+- [ ] With "Upstream key 1": the scoreboard goes on and off air on M/E 1 key 1, stays on air through REPLAY/LIVE cuts, and the stinger plays over it.
 
 ## 5b. NDI
 

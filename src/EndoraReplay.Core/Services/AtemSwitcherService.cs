@@ -100,6 +100,12 @@ public sealed class AtemSwitcherService : IAsyncDisposable
     public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir) =>
         RunAsync($"DSK {keyer} {(onAir ? "on air" : "off air")}", sw => sw.SetDownstreamKeyOnAirAsync(keyer, onAir));
 
+    public Task ConfigureUpstreamKeyAsync(int keyer, int input, double clip, double gain) =>
+        RunAsync($"Upstream key {keyer} luma key of input {input} (clip {clip:0}%, gain {gain:0}%)", sw => sw.ConfigureUpstreamKeyAsync(keyer, input, clip, gain));
+
+    public Task SetUpstreamKeyOnAirAsync(int keyer, bool onAir) =>
+        RunAsync($"Upstream key {keyer} {(onAir ? "on air" : "off air")}", sw => sw.SetUpstreamKeyOnAirAsync(keyer, onAir));
+
     private async Task RunAsync(string what, Func<IAtemSwitcher, Task> command)
     {
         var sw = _switcher;

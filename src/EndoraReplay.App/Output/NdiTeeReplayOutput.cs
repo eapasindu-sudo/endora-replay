@@ -15,6 +15,8 @@ namespace EndoraReplay.App.Output;
 public sealed class NdiTeeReplayOutput(IReplayOutput inner, OutputSettings settings, DiagnosticsService diagnostics) : IReplayOutput
 {
     private NdiSender? _ndi;
+
+    public IReplayOutput Inner => inner;
     private BgraImage? _holding;
 
     public string Name => _ndi is null ? inner.Name : $"{inner.Name} + NDI \"{_ndi.Name}\"";

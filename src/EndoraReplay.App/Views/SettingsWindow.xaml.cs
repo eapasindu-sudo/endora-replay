@@ -450,8 +450,8 @@ public partial class SettingsWindow : Window
         ndi.Children.Add(Note("UNTESTED: NDI output and NDI inputs have not been tested on real NDI equipment yet. NDI® is a registered trademark of Vizrt NDI AB.", "Violet"));
 
         var sb = _edit.Scoreboard;
-        var score = Card(root, "Scoreboard over Program (DSK 2)");
-        score.Children.Add(Note("Endora shows the scoreboard link full screen on its own HDMI output. Wire that output to an ATEM input; Endora keys it over Program with DSK 2. Parts of the page that are transparent show as black and are keyed out.", "Dim"));
+        var score = Card(root, "Scoreboard over Program");
+        score.Children.Add(Note("Endora shows the scoreboard link full screen on its own HDMI output. Wire that output to an ATEM input; Endora keys it over Program. Parts of the page that are transparent show as black and are keyed out.", "Dim"));
         Toggle(score, "Use a scoreboard", sb.Enabled, v => { sb.Enabled = v; Changed(); Rebuild(); }, null);
         if (sb.Enabled)
         {
@@ -464,6 +464,9 @@ public partial class SettingsWindow : Window
             sitems.Insert(0, ("(choose a display)", null));
             Field(score, "Scoreboard display", Combo(sitems, sb.DisplayDevice, v => { sb.DisplayDevice = v; Changed(); }),
                 "A third screen output of this PC (not the operator screen and not the replay output), set to Extend at 1920×1080.");
+            Field(score, "ATEM key", Combo(new[] { ("DSK 2 (downstream key)", ScoreboardKeyer.Dsk2), ("Upstream key 1 (keeps both DSKs free)", ScoreboardKeyer.UpstreamKey1) },
+                sb.Keyer, v => { sb.Keyer = v; Changed(); }),
+                "DSK 2 sits on top of everything, stingers included. Upstream key 1 sits under the DSKs, so the stinger plays over the scoreboard; it stays on air through cuts. Take the scoreboard off air before changing this.");
             Field(score, "ATEM input", IntBox(sb.AtemInput, v => { sb.AtemInput = v; Changed(); }), "The ATEM HDMI input that the scoreboard output is plugged into.");
             Field(score, "Zoom (%)", IntBox(sb.ZoomPercent, v => { sb.ZoomPercent = v; Changed(); }), "Make the page bigger or smaller if it was designed for another size.");
             var sbStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
@@ -471,7 +474,7 @@ public partial class SettingsWindow : Window
             var reload = new Button { Content = "Reload page", Style = S("BtnBase"), Padding = new Thickness(12, 5, 12, 5), HorizontalAlignment = HorizontalAlignment.Left };
             reload.Click += (_, _) => _host.Scoreboard.Reload();
             Field(score, "", reload, $"Put it on air with the SCOREBOARD button or {KeyBindingService.Pretty(_edit.KeyBindings.GetValueOrDefault(OperatorActions.Scoreboard) ?? "")}.");
-            score.Children.Add(Note("UNTESTED: the scoreboard output and DSK 2 have not been tested on a real ATEM yet. The page needs the Microsoft Edge WebView2 Runtime, which Windows 10 and 11 normally have.", "Violet"));
+            score.Children.Add(Note("UNTESTED: the scoreboard output and its ATEM key have not been tested on a real ATEM yet. The page needs the Microsoft Edge WebView2 Runtime, which Windows 10 and 11 normally have.", "Violet"));
             var prevRefresh = _refreshPage;
             _refreshPage = () =>
             {
@@ -517,7 +520,7 @@ public partial class SettingsWindow : Window
         OperatorActions.CancelAuto => "Cancel auto",
         OperatorActions.EmergencyOverride => "Emergency manual override",
         OperatorActions.ClearError => "Clear error",
-        OperatorActions.Scoreboard => "Scoreboard on/off (DSK 2)",
+        OperatorActions.Scoreboard => "Scoreboard on/off",
         OperatorActions.MarkIn => "Mark IN",
         OperatorActions.MarkOut => "Mark OUT",
         OperatorActions.SaveClip => "Save clip",

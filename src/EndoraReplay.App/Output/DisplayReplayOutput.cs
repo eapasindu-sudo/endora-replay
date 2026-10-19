@@ -25,6 +25,7 @@ public sealed class DisplayReplayOutput : IReplayOutput
 {
     private readonly OutputSettings _settings;
     private readonly DiagnosticsService _diag;
+    private volatile string? _device;
     private Thread? _thread;
     private Dispatcher? _dispatcher;
     private Window? _window;
@@ -39,10 +40,11 @@ public sealed class DisplayReplayOutput : IReplayOutput
     public DisplayReplayOutput(OutputSettings settings, DiagnosticsService diagnostics)
     {
         _settings = settings;
+        _device = settings.DisplayDevice;
         _diag = diagnostics;
     }
 
-    public string Name => $"Display {_settings.DisplayDevice?.Replace(@"\\.\", "") ?? "(none)"}";
+    public string Name => $"Display {_device?.Replace(@"\\.\", "") ?? "(none)"}";
     public bool IsSimulated => false;
     public OutputReadiness Readiness => _readiness;
     public string ReadinessMessage => _message;
@@ -77,6 +79,8 @@ public sealed class DisplayReplayOutput : IReplayOutput
         await started.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaysChanged;
         Revalidate();
+        // The window was placed before the display was known (SourceInitialized runs first), which left it hidden.
+        _dispatcher?.BeginInvoke(PlaceOnDisplay);
         ShowHolding();
     }
 
@@ -130,22 +134,30 @@ public sealed class DisplayReplayOutput : IReplayOutput
         _dispatcher?.BeginInvoke(PlaceOnDisplay);
     }
 
+    /// <summary>Moves the output to another display without a restart.</summary>
+    public void MoveTo(string? device)
+    {
+        _device = device;
+        Revalidate();
+        _dispatcher?.BeginInvoke(PlaceOnDisplay);
+    }
+
     /// <summary>Re-reads the display list and updates readiness.</summary>
     public void Revalidate()
     {
         var displays = DisplayInfo.List();
-        Display = displays.FirstOrDefault(d => string.Equals(d.DeviceName, _settings.DisplayDevice, StringComparison.OrdinalIgnoreCase));
+        Display = displays.FirstOrDefault(d => string.Equals(d.DeviceName, _device, StringComparison.OrdinalIgnoreCase));
         var v = ValidateMode(_format);
         var r = Display is null ? OutputReadiness.DeviceMissing : v.IsValid ? OutputReadiness.Ready : OutputReadiness.ModeMismatch;
-        if (_settings.DisplayDevice is null) r = OutputReadiness.NotConfigured;
+        if (_device is null) r = OutputReadiness.NotConfigured;
         SetReadiness(r, v.Message);
     }
 
     public ModeValidationResult ValidateMode(VideoFormat format)
     {
-        if (_settings.DisplayDevice is null) return ModeValidationResult.Fail("No output display selected (Settings → Output).");
+        if (_device is null) return ModeValidationResult.Fail("No output display selected (Settings → Output).");
         var d = Display;
-        if (d is null) return ModeValidationResult.Fail($"Display {_settings.DisplayDevice} is not connected.");
+        if (d is null) return ModeValidationResult.Fail($"Display {_device} is not connected.");
         if (d.IsPrimary) return ModeValidationResult.Fail("Replay output cannot be the primary (operator) display.");
         if (d.Width != format.Width || d.Height != format.Height)
             return ModeValidationResult.Fail($"Display is {d.Width}×{d.Height}; set it to {format.Width}×{format.Height} in Windows display settings.");

@@ -189,9 +189,11 @@ public sealed class AppHost : IAsyncDisposable
             catch (Exception e) { Diagnostics.Error(LogCategory.Output, $"Scoreboard could not start: {e.Message}"); }
         });
 
-    public bool ScoreboardOnAir => Atem.Snapshot.IsDownstreamKeyOnAir(ScoreboardSettings.Keyer);
+    public bool ScoreboardOnAir => Settings.Scoreboard.Keyer == ScoreboardKeyer.UpstreamKey1
+        ? Atem.Snapshot.IsUpstreamKeyOnAir(1)
+        : Atem.Snapshot.IsDownstreamKeyOnAir(2);
 
-    /// <summary>Puts the scoreboard on or off air with ATEM DSK 2. Returns an error for the operator, or null.</summary>
+    /// <summary>Puts the scoreboard on or off air with ATEM DSK 2 or upstream key 1. Returns an error for the operator, or null.</summary>
     public string? ToggleScoreboard() => SetScoreboard(!ScoreboardOnAir);
 
     public string? SetScoreboard(bool onAir)
@@ -204,12 +206,20 @@ public sealed class AppHost : IAsyncDisposable
         {
             try
             {
-                if (onAir) await Atem.ConfigureDownstreamKeyAsync(ScoreboardSettings.Keyer, sb.AtemInput, ScoreboardSettings.KeyClip, ScoreboardSettings.KeyGain).ConfigureAwait(false);
-                await Atem.SetDownstreamKeyOnAirAsync(ScoreboardSettings.Keyer, onAir).ConfigureAwait(false);
+                if (sb.Keyer == ScoreboardKeyer.UpstreamKey1)
+                {
+                    if (onAir) await Atem.ConfigureUpstreamKeyAsync(1, sb.AtemInput, ScoreboardSettings.KeyClip, ScoreboardSettings.KeyGain).ConfigureAwait(false);
+                    await Atem.SetUpstreamKeyOnAirAsync(1, onAir).ConfigureAwait(false);
+                }
+                else
+                {
+                    if (onAir) await Atem.ConfigureDownstreamKeyAsync(2, sb.AtemInput, ScoreboardSettings.KeyClip, ScoreboardSettings.KeyGain).ConfigureAwait(false);
+                    await Atem.SetDownstreamKeyOnAirAsync(2, onAir).ConfigureAwait(false);
+                }
             }
             catch (Exception e)
             {
-                Diagnostics.Error(LogCategory.Atem, $"Scoreboard DSK {ScoreboardSettings.Keyer}: {e.Message}");
+                Diagnostics.Error(LogCategory.Atem, $"Scoreboard key ({sb.Keyer}): {e.Message}");
             }
         });
         return null;
@@ -262,7 +272,6 @@ public sealed class AppHost : IAsyncDisposable
         RestartRequired |= old.VideoFormat != updated.VideoFormat
             || old.Buffer.DataFolder != updated.Buffer.DataFolder
             || old.Output.Kind != updated.Output.Kind
-            || old.Output.DisplayDevice != updated.Output.DisplayDevice
             || old.Output.Holding != updated.Output.Holding
             || old.Output.ReplayBadgeText != updated.Output.ReplayBadgeText || old.Output.ReplayBadge != updated.Output.ReplayBadge
             || old.Output.NdiOutput != updated.Output.NdiOutput || old.Output.NdiOutputName != updated.Output.NdiOutputName
@@ -283,6 +292,11 @@ public sealed class AppHost : IAsyncDisposable
         if (restartAtem) await StartAtemAsync().ConfigureAwait(false);
         if (restartRemote) await StartRemoteAsync().ConfigureAwait(false);
         if (restartMidi) StartMidi();
+        if (old.Output.DisplayDevice != updated.Output.DisplayDevice)
+        {
+            var display = (Output as NdiTeeReplayOutput)?.Inner ?? Output;
+            if (display is DisplayReplayOutput d) d.MoveTo(updated.Output.DisplayDevice);
+        }
         StartScoreboard();
         if (restartCapture) await StartCaptureAsync().ConfigureAwait(false);
         Diagnostics.Info(LogCategory.App, "Settings applied" + (RestartRequired ? " (restart Endora to apply output/format/folder changes)" : ""));
@@ -300,6 +314,9 @@ public sealed class AppHost : IAsyncDisposable
         to.Remote = copy.Remote;
         to.Updates = copy.Updates;
         to.KeyBindings = copy.KeyBindings;
+        to.Midi = copy.Midi;
+        to.Scoreboard = copy.Scoreboard;
+        to.Ui = copy.Ui;
         to.VideoFormat = copy.VideoFormat;
     }
 

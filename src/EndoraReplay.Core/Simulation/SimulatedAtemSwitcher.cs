@@ -86,6 +86,24 @@ public sealed class SimulatedAtemSwitcher : IAtemSwitcher
         return Task.CompletedTask;
     }
 
+    public Task ConfigureUpstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent)
+    {
+        EnsureConnected();
+        return Task.CompletedTask;
+    }
+
+    public Task SetUpstreamKeyOnAirAsync(int keyer, bool onAir)
+    {
+        EnsureConnected();
+        Update(s =>
+        {
+            var on = new HashSet<int>(s.UpstreamKeysOnAir ?? new HashSet<int>());
+            if (onAir) on.Add(keyer); else on.Remove(keyer);
+            return s with { UpstreamKeysOnAir = on };
+        });
+        return Task.CompletedTask;
+    }
+
     public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir)
     {
         EnsureConnected();

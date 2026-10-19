@@ -26,7 +26,7 @@ public sealed class AppSettings
     /// <summary>Operator screen layout.</summary>
     public UiSettings Ui { get; set; } = new();
 
-    /// <summary>Web scoreboard shown over the ATEM Program on DSK 2.</summary>
+    /// <summary>Web scoreboard keyed over the ATEM Program (DSK 2 or upstream key 1).</summary>
     public ScoreboardSettings Scoreboard { get; set; } = new();
 
     [JsonIgnore]
@@ -281,11 +281,20 @@ public sealed class OutputSettings
 
 /// <summary>
 /// A scoreboard web page (the scoring service's overlay link) rendered full screen on its own HDMI output, wired to
-/// an ATEM input and keyed over Program with DSK 2. Transparent parts of the page show as black and are keyed out.
+/// an ATEM input and keyed over Program with DSK 2 or upstream key 1. Transparent parts of the page show as black and are keyed out.
 /// </summary>
+public enum ScoreboardKeyer
+{
+    /// <summary>Downstream key 2: on top of everything, including stingers.</summary>
+    Dsk2,
+
+    /// <summary>Upstream key 1 on M/E 1: keeps both DSKs free; it stays on air through cuts.</summary>
+    UpstreamKey1,
+}
+
 public sealed class ScoreboardSettings
 {
-    public const int Keyer = 2;
+    public ScoreboardKeyer Keyer { get; set; } = ScoreboardKeyer.Dsk2;
 
     /// <summary>Hard luma key: only black (the page's transparent background) is keyed out.</summary>
     public const double KeyClip = 3;

@@ -4,6 +4,7 @@ using LibAtem.Commands;
 using LibAtem.Commands.DeviceProfile;
 using LibAtem.Commands.DownstreamKey;
 using LibAtem.Commands.MixEffects;
+using LibAtem.Commands.MixEffects.Key;
 using LibAtem.Commands.MixEffects.Transition;
 using LibAtem.Commands.Settings;
 using LibAtem.Common;
@@ -134,6 +135,12 @@ public sealed class LibAtemSwitcher : IAtemSwitcher
                         SetDsk((int)d.Index + 1, d.OnAir);
                         changed = true;
                         break;
+                    case MixEffectKeyOnAirGetCommand k when k.MixEffectIndex == MixEffectBlockId.One:
+                        var usk = new HashSet<int>(_snapshot.UpstreamKeysOnAir ?? new HashSet<int>());
+                        if (k.OnAir) usk.Add((int)k.KeyerIndex + 1); else usk.Remove((int)k.KeyerIndex + 1);
+                        _snapshot = _snapshot with { UpstreamKeysOnAir = usk };
+                        changed = true;
+                        break;
                     case VideoModeGetCommand vm:
                         _snapshot = _snapshot with { VideoMode = vm.VideoMode.ToString() };
                         changed = true;
@@ -174,6 +181,35 @@ public sealed class LibAtemSwitcher : IAtemSwitcher
     public Task SetDownstreamKeyOnAirAsync(int keyer, bool onAir)
     {
         Send(new DownstreamKeyOnAirSetCommand { Index = (DownstreamKeyId)(keyer - 1), OnAir = onAir });
+        return Task.CompletedTask;
+    }
+
+    public Task ConfigureUpstreamKeyAsync(int keyer, int input, double clipPercent, double gainPercent)
+    {
+        var me = MixEffectBlockId.One;
+        var id = (UpstreamKeyId)(keyer - 1);
+        Send(new MixEffectKeyTypeSetCommand
+        {
+            MixEffectIndex = me, KeyerIndex = id,
+            Mask = MixEffectKeyTypeSetCommand.MaskFlags.KeyType | MixEffectKeyTypeSetCommand.MaskFlags.FlyEnabled,
+            KeyType = MixEffectKeyType.Luma, FlyEnabled = false,
+        });
+        Send(new MixEffectKeyFillSourceSetCommand { MixEffectIndex = me, KeyerIndex = id, FillSource = (VideoSource)input });
+        Send(new MixEffectKeyCutSourceSetCommand { MixEffectIndex = me, KeyerIndex = id, CutSource = (VideoSource)input });
+        Send(new MixEffectKeyLumaSetCommand
+        {
+            MixEffectIndex = me, KeyerIndex = id,
+            Mask = MixEffectKeyLumaSetCommand.MaskFlags.PreMultiplied | MixEffectKeyLumaSetCommand.MaskFlags.Clip
+                | MixEffectKeyLumaSetCommand.MaskFlags.Gain | MixEffectKeyLumaSetCommand.MaskFlags.Invert,
+            PreMultiplied = false, Clip = clipPercent, Gain = gainPercent, Invert = false,
+        });
+        Send(new MixEffectKeyMaskSetCommand { MixEffectIndex = me, KeyerIndex = id, Mask = MixEffectKeyMaskSetCommand.MaskFlags.MaskEnabled, MaskEnabled = false });
+        return Task.CompletedTask;
+    }
+
+    public Task SetUpstreamKeyOnAirAsync(int keyer, bool onAir)
+    {
+        Send(new MixEffectKeyOnAirSetCommand { MixEffectIndex = MixEffectBlockId.One, KeyerIndex = (UpstreamKeyId)(keyer - 1), OnAir = onAir });
         return Task.CompletedTask;
     }
 
