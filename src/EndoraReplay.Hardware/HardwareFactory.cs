@@ -3,6 +3,7 @@ using EndoraReplay.Core.Model;
 using EndoraReplay.Core.Simulation;
 using EndoraReplay.Hardware.Atem;
 using EndoraReplay.Hardware.Capture;
+using EndoraReplay.Hardware.Ndi;
 
 namespace EndoraReplay.Hardware;
 
@@ -16,6 +17,7 @@ public static class HardwareFactory
     [
         new OpenCvCaptureBackend(CaptureBackendKind.MediaFoundation),
         new OpenCvCaptureBackend(CaptureBackendKind.DirectShow),
+        new NdiCaptureBackend(),
         new UnavailableCaptureBackend(CaptureBackendKind.DeckLink, DeckLinkUnavailable),
         new SimulatedCaptureBackend(),
     ];

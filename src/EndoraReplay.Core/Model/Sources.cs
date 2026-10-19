@@ -11,6 +11,9 @@ public enum CaptureBackendKind
     /// <summary>Blackmagic DeckLink / UltraStudio through the Desktop Video SDK. Requires SDK interop (see docs).</summary>
     DeckLink,
 
+    /// <summary>NDI® network video (needs the NDI Runtime installed). Device id is the NDI source name.</summary>
+    Ndi,
+
     /// <summary>SIMULATED test pattern. Never a production source.</summary>
     Simulated,
 }
