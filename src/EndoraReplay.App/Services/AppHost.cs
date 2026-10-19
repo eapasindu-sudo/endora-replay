@@ -67,6 +67,7 @@ public sealed class AppHost : IAsyncDisposable
             ReplayOutputKind.Display => new DisplayReplayOutput(s.Output, Diagnostics),
             _ => new SimulatedReplayOutput(),
         };
+        if (s.Output.NdiOutput) Output = new NdiTeeReplayOutput(Output, s.Output, Diagnostics);
         if (s.Output.Kind == ReplayOutputKind.DeckLink)
             Diagnostics.Error(LogCategory.Output, HardwareFactory.DeckLinkUnavailable + " Using SIMULATED output.");
         try { await Output.OpenAsync(s.Format, CancellationToken.None).ConfigureAwait(false); }
@@ -173,6 +174,7 @@ public sealed class AppHost : IAsyncDisposable
             || old.Output.DisplayDevice != updated.Output.DisplayDevice
             || old.Output.Holding != updated.Output.Holding
             || old.Output.ReplayBadgeText != updated.Output.ReplayBadgeText || old.Output.ReplayBadge != updated.Output.ReplayBadge
+            || old.Output.NdiOutput != updated.Output.NdiOutput || old.Output.NdiOutputName != updated.Output.NdiOutputName
             || old.Output.HoldingImageFile != updated.Output.HoldingImageFile;
 
         updated.Save(SettingsPath);

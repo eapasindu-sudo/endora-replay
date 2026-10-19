@@ -54,6 +54,8 @@ With **Endora stinger video**:
 
 - [ ] Stinger loads (Settings shows frame count). The ATEM cut lands on the cover frame, no flash of the old picture.
 - [ ] Stinger back to live at the end of the clip.
+- [ ] With the DSK key on: the whole stinger shows over live on the way in and out, the background is keyed out, DSK 1 goes off when the stinger ends, and the fade hides the last frame.
+- [ ] Settings shows each stinger's coverage near 100 %; a lower figure warns that the cut may show.
 
 ## 5. Playback and clips
 
@@ -61,6 +63,16 @@ With **Endora stinger video**:
 - [ ] Jog wheel and frame step move one frame per step in Jog mode.
 - [ ] IN/OUT, save, tag, queue; clips survive an Endora restart.
 - [ ] Change angle while a clip is armed: the same moment from the other camera is armed.
+- [ ] Press a camera key (or numpad 1–8) while a replay plays: playout continues from the same moment on that camera.
+- [ ] The REPLAY badge spins in the bottom-right corner during the clip and hides during stingers and the holding frame.
+- [ ] Right-click a clip: the Tag submenu sets its tag.
+- [ ] Fill the drive near the limit: the oldest clips are deleted, an armed or queued clip is kept.
+
+## 5b. NDI
+
+- [ ] With the NDI Runtime installed, NDI sources appear in Settings → Capture inputs and can be used as a camera or as Program.
+- [ ] NDI output on: the source "PC NAME (Endora Replay)" shows the replay playout and holding frame in NDI Studio Monitor, vMix or OBS.
+- [ ] Without the runtime, Settings says why and the HDMI output still works.
 - [ ] Disk below the free-space limit: saving is refused with a message; buffer recording continues.
 
 ## 6. Phone remote

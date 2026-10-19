@@ -54,6 +54,10 @@
     "kind": "Display",
     "displayDevice": "\\\\.\\DISPLAY2",
     "holding": "Slate",
+    "replayBadge": true,
+    "replayBadgeText": "REPLAY",
+    "ndiOutput": false,
+    "ndiOutputName": "Endora Replay",
     "holdingImageFile": null
   },
   "remote": {

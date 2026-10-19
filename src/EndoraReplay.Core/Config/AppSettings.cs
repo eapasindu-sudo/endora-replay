@@ -234,6 +234,11 @@ public sealed class OutputSettings
     public bool ReplayBadge { get; set; } = true;
 
     public string ReplayBadgeText { get; set; } = "REPLAY";
+
+    /// <summary>Also send the replay playout on the network as an NDI source (needs the NDI Runtime).</summary>
+    public bool NdiOutput { get; set; }
+
+    public string NdiOutputName { get; set; } = "Endora Replay";
     public string? HoldingImageFile { get; set; }
 }
 

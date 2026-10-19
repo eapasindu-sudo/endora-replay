@@ -430,6 +430,14 @@ public partial class SettingsWindow : Window
             "An animated badge in the bottom-right corner of the replay output, inside the title-safe area. Hidden during stingers and the holding frame.");
         Field(badge, "Badge text", TextBox(o.ReplayBadgeText, v => { o.ReplayBadgeText = v; Changed(); }), "Shown in capitals. Badge changes apply after restarting Endora.");
 
+        var ndi = Card(root, "NDI output");
+        Toggle(ndi, "Also send the replay playout as an NDI source", o.NdiOutput, v => { o.NdiOutput = v; Changed(); },
+            "Sends the same pictures as the replay output on the network, for vMix, OBS or another PC. The REPLAY badge is not included. Applies after restarting Endora.");
+        Field(ndi, "NDI source name", TextBox(o.NdiOutputName, v => { o.NdiOutputName = v; Changed(); }), "Shown as \"PC NAME (Endora Replay)\" on the network.");
+        if (Hardware.Ndi.NdiSender.UnavailableReason is { } ndiWhy)
+            ndi.Children.Add(Note(ndiWhy, "Amber"));
+        ndi.Children.Add(Note("UNTESTED: NDI output and NDI inputs have not been tested on real NDI equipment yet. NDI® is a registered trademark of Vizrt NDI AB.", "Violet"));
+
         var hold = Card(root, "Holding frame (when no replay is playing)");
         Field(hold, "Show", Combo(new[] { ("Endora slate", HoldingFrameMode.Slate), ("Last replay frame", HoldingFrameMode.LastFrame), ("Black", HoldingFrameMode.Black) },
             o.Holding, v => { o.Holding = v; Changed(); }), null);
