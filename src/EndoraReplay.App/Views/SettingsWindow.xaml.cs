@@ -528,6 +528,8 @@ public partial class SettingsWindow : Window
         ("Cue", [OperatorActions.LiveMode, OperatorActions.JogMode, OperatorActions.FrameBack, OperatorActions.FrameForward, OperatorActions.ShuttleBack, OperatorActions.ShuttleForward]),
         ("Speed", [OperatorActions.Speed100, OperatorActions.Speed50, OperatorActions.Speed25]),
         ("Cameras", [OperatorActions.NextAngle, OperatorActions.PreviousAngle, .. Enumerable.Range(1, 8).Select(OperatorActions.Camera)]),
+        ("Replay picture", [OperatorActions.SplitScreen, OperatorActions.ZoomIn, OperatorActions.ZoomOut, OperatorActions.ZoomReset,
+            OperatorActions.PanLeft, OperatorActions.PanRight, OperatorActions.PanUp, OperatorActions.PanDown]),
     ];
 
     private static string ActionLabel(string action) => action switch
@@ -552,6 +554,14 @@ public partial class SettingsWindow : Window
         OperatorActions.Speed100 => "Speed 100%",
         OperatorActions.Speed50 => "Speed 50%",
         OperatorActions.Speed25 => "Speed 25%",
+        OperatorActions.SplitScreen => "Split screen on/off",
+        OperatorActions.ZoomIn => "Zoom in",
+        OperatorActions.ZoomOut => "Zoom out",
+        OperatorActions.ZoomReset => "Zoom reset",
+        OperatorActions.PanLeft => "Pan left",
+        OperatorActions.PanRight => "Pan right",
+        OperatorActions.PanUp => "Pan up",
+        OperatorActions.PanDown => "Pan down",
         _ when action.StartsWith("Camera", StringComparison.Ordinal) => "Camera " + action[6..],
         _ => action,
     };

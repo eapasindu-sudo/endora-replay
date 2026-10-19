@@ -95,6 +95,8 @@ With **Endora stinger video**:
 ## 5d. Replay tools (untested)
 
 - [ ] Highlights: three tagged clips play back to back with the stinger between, no flash of the wrong clip at the change.
+- [ ] Split screen: both halves move in step at 50 % and 100 %; replay output stays smooth (no dropped frames in Diagnostics).
+- [ ] Zoom/pan: wheel, drag, keys and a MIDI knob; the replay output stays smooth at 4×.
 - [ ] Export MP4: a clip and a 3-clip package export, play in VLC and the Windows player; note which codec was used.
 
 ## 6. Phone remote

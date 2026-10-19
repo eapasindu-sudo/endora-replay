@@ -34,6 +34,9 @@ validates.
 | F9 | Clear error | ← / → | Frame back / forward |
 | 1–8 | Select camera | Shift+← / → | Shuttle 1 s |
 | Tab / Shift+Tab | Next / previous camera | F1 / F2 / F3 | Speed 100 / 50 / 25 % |
+| F5 | Scoreboard on/off | F6 | Split screen on/off |
+| + / − | Zoom replay in / out | 0 | Zoom reset |
+| Ctrl+arrows | Pan the zoomed replay | | |
 
 ## Replay tools
 
@@ -45,6 +48,12 @@ These are new and have not been tested on the real hardware yet.
 - **Export MP4:** right-click a clip → Export MP4…. It is saved on the selected camera (or the angle it was marked
   on) at the current speed, without audio. Several selected clips export as one highlights video with the stinger.
   H.264 is used when this PC's video library can encode it, otherwise MPEG-4; the status line says which.
+- **Split screen (F6 or SPLIT under the replay monitor):** replays show a second angle on the right, at the same
+  moment. While it is on and a replay plays, the camera keys choose the right-hand picture. Not for highlights.
+- **Zoom and pan:** while a replay plays, + / − or the mouse wheel over the replay monitor zooms (up to 4×), Ctrl+arrows
+  or dragging pans, 0 or a double-click resets. Each new replay starts unzoomed. All of these can also be learnt on
+  a MIDI controller. Split screen and zoom re-encode every replay frame on the CPU; check the replay stays smooth on
+  the match PC.
 
 ## Typical cricket setup
 

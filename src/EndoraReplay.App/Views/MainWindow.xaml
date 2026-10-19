@@ -161,8 +161,11 @@
                             </Grid>
                         </Border>
                         <Border Grid.Row="2" Background="Black" BorderBrush="#4B3F7A" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
-                            <Grid>
+                            <Grid x:Name="OutHost" Background="Transparent" MouseWheel="OnOutWheel" MouseLeftButtonDown="OnOutDown" MouseMove="OnOutMove" MouseLeftButtonUp="OnOutUp"
+                                  ToolTip="During a replay: mouse wheel zooms, drag pans, double-click resets.">
                                 <Image x:Name="OutImage" Stretch="Uniform" />
+                                <Button x:Name="SplitBtn" Content="SPLIT" Style="{StaticResource BtnBase}" Padding="8,3" FontSize="10" FontWeight="Bold" Margin="10"
+                                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Click="OnSplit" ToolTip="Split screen: two angles side by side during replays (F6). With it on, camera keys choose the right-hand picture." />
                                 <Viewbox x:Name="OutBadgeHost" Stretch="Uniform" Visibility="Collapsed" IsHitTestVisible="False" />
                                 <Border Background="{StaticResource Violet}" CornerRadius="5" Padding="9,4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                                     <TextBlock x:Name="OutTag" Text="REPLAY OUT → ATEM IN 8" Foreground="White" FontWeight="Black" FontSize="11" />

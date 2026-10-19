@@ -26,6 +26,14 @@ public static class OperatorActions
     public const string Speed25 = "Speed25";
     public const string ClearError = "ClearError";
     public const string Scoreboard = "Scoreboard";
+    public const string SplitScreen = "SplitScreen";
+    public const string ZoomIn = "ZoomIn";
+    public const string ZoomOut = "ZoomOut";
+    public const string ZoomReset = "ZoomReset";
+    public const string PanLeft = "PanLeft";
+    public const string PanRight = "PanRight";
+    public const string PanUp = "PanUp";
+    public const string PanDown = "PanDown";
     public static string Camera(int n) => $"Camera{n}";
 }
 
@@ -61,6 +69,14 @@ public static class KeyBindingDefaults
             [OperatorActions.Speed25] = "F3",
             [OperatorActions.ClearError] = "F9",
             [OperatorActions.Scoreboard] = "F5",
+            [OperatorActions.SplitScreen] = "F6",
+            [OperatorActions.ZoomIn] = "OemPlus",
+            [OperatorActions.ZoomOut] = "OemMinus",
+            [OperatorActions.ZoomReset] = "D0",
+            [OperatorActions.PanLeft] = "Ctrl+Left",
+            [OperatorActions.PanRight] = "Ctrl+Right",
+            [OperatorActions.PanUp] = "Ctrl+Up",
+            [OperatorActions.PanDown] = "Ctrl+Down",
         };
         for (var i = 1; i <= 8; i++) d[OperatorActions.Camera(i)] = $"D{i}";
         return d;

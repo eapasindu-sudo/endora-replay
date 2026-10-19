@@ -89,7 +89,7 @@ public sealed class AppHost : IAsyncDisposable
         try { await Output.OpenAsync(s.Format, CancellationToken.None).ConfigureAwait(false); }
         catch (Exception e) { Diagnostics.Error(LogCategory.Output, $"Output failed to open: {e.Message}"); }
 
-        Playback = new ReplayPlaybackService(Output, s.Format, Diagnostics);
+        Playback = new ReplayPlaybackService(Output, s.Format, Diagnostics) { Effects = new FrameEffects() };
         Playback.SetSpeed(0.5);
         Atem = new AtemSwitcherService(HardwareFactory.CreateSwitcher, Diagnostics);
         _progress?.Report("Loading stingers…");

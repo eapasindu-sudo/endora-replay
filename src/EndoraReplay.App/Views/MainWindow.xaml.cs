@@ -343,6 +343,45 @@ public partial class MainWindow : Window
         if (e.OriginalSource == TagPicker) TagPicker.Visibility = Visibility.Collapsed;
     }
 
+    // ================= replay picture: split screen, zoom and pan =================
+
+    private Point? _panFrom;
+
+    private void OnSplit(object sender, RoutedEventArgs e) => Run(OperatorActions.SplitScreen);
+
+    private void OnOutWheel(object sender, MouseWheelEventArgs e)
+    {
+        var err = _host.Operator.ZoomBy(e.Delta > 0 ? 1.15 : 1 / 1.15);
+        if (err is not null) ShowStatus(err);
+        e.Handled = true;
+    }
+
+    private void OnOutDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            Run(OperatorActions.ZoomReset);
+            return;
+        }
+        _panFrom = e.GetPosition(OutHost);
+        OutHost.CaptureMouse();
+    }
+
+    private void OnOutMove(object sender, MouseEventArgs e)
+    {
+        if (_panFrom is not { } from || OutHost.ActualWidth < 1) return;
+        var p = e.GetPosition(OutHost);
+        // Dragging moves the picture with the mouse, so the view moves the other way.
+        _host.Operator.PanBy(-(p.X - from.X) / OutHost.ActualWidth, -(p.Y - from.Y) / OutHost.ActualHeight);
+        _panFrom = p;
+    }
+
+    private void OnOutUp(object sender, MouseButtonEventArgs e)
+    {
+        _panFrom = null;
+        OutHost.ReleaseMouseCapture();
+    }
+
     // ================= clips =================
 
     private void OnTagFilter(object sender, SelectionChangedEventArgs e) => RefreshClips();
@@ -664,6 +703,16 @@ public partial class MainWindow : Window
             ScoreBtn.Content = scoreText;
             ScoreBtn.Style = (Style)FindResource(scoreOn ? "BtnGreen" : "BtnBase");
         }
+
+        var op2 = _host.Operator;
+        var splitText = !op2.SplitScreen ? "SPLIT · OFF" : op2.SplitCamera is { } sc ? $"SPLIT · CAM {sc}" : "SPLIT · ON";
+        if (!Equals(SplitBtn.Content, splitText))
+        {
+            SplitBtn.Content = splitText;
+            SplitBtn.Style = (Style)FindResource(op2.SplitScreen ? "BtnGreen" : "BtnBase");
+        }
+        var zoom = _host.Playback.View.Zoom;
+        OutInfo.Text += zoom > 1.0001 ? $" · ZOOM {zoom:0.0}×" : "";
 
         // Alert banner: errors, override, ATEM loss, transient operator errors
         string? alert = null;

@@ -142,3 +142,13 @@ public interface IFrameSequence
 }
 
 public sealed class FrameUnavailableException(string message) : Exception(message);
+
+/// <summary>Picture changes the replay output can apply during a replay: split screen and zoom/pan.</summary>
+public interface IFrameEffects
+{
+    /// <summary>
+    /// Returns <paramref name="main"/> with <paramref name="second"/> beside it (split screen, when not null), then
+    /// zoomed by <paramref name="view"/>. The result has the size of <paramref name="main"/>.
+    /// </summary>
+    EncodedFrame Apply(EncodedFrame main, EncodedFrame? second, ViewTransform view);
+}

@@ -52,7 +52,14 @@ public sealed class OperatorController : IRemoteHandler
         SelectedCamera = settings.Sources.FirstOrDefault(s => s.Enabled && s.Role == SourceRole.Camera)?.SourceId ?? 1;
         _automation.Alert += (level, msg) => { LastAlert = msg; LastAlertLevel = level; Changed?.Invoke(); };
         _automation.StateChanged += OnStateChanged;
+        _playback.SegmentStarted += k => { if (k == PlayoutSegmentKind.Clip && SplitScreen) ApplySplit(); };
     }
+
+    /// <summary>Split screen is on: replays show a second angle beside the main one.</summary>
+    public bool SplitScreen { get; private set; }
+
+    /// <summary>Camera shown on the right in split screen, while a replay plays.</summary>
+    public int? SplitCamera { get; private set; }
 
     public int SelectedCamera { get; private set; }
     public CueMode Mode { get; private set; } = CueMode.Live;
@@ -161,6 +168,18 @@ public sealed class OperatorController : IRemoteHandler
             case "Jog": return Jog((int)(value ?? 0));
             case "Seek": return Seek(value ?? 0);
 
+            case OperatorActions.SplitScreen:
+                SplitScreen = !SplitScreen;
+                _diag.Info(LogCategory.Playback, $"Split screen {(SplitScreen ? "on" : "off")}");
+                return ApplySplit();
+            case OperatorActions.ZoomIn: return ZoomBy(1.25);
+            case OperatorActions.ZoomOut: return ZoomBy(1 / 1.25);
+            case OperatorActions.ZoomReset: return SetView(ViewTransform.Identity);
+            case OperatorActions.PanLeft: return PanBy(-0.1, 0);
+            case OperatorActions.PanRight: return PanBy(0.1, 0);
+            case OperatorActions.PanUp: return PanBy(0, -0.1);
+            case OperatorActions.PanDown: return PanBy(0, 0.1);
+
             case OperatorActions.Speed100: return SetSpeed(1.0);
             case OperatorActions.Speed50: return SetSpeed(0.5);
             case OperatorActions.Speed25: return SetSpeed(0.25);
@@ -209,6 +228,9 @@ public sealed class OperatorController : IRemoteHandler
         SelectedCamera = cam;
 
         // During a replay, cut the replay itself to the new angle at the same moment.
+        // With split screen on during a replay, the camera buttons choose the right-hand picture.
+        if (SplitScreen && ReplayRunning && _automation.PlayingClip is { IsPackage: false })
+            return ApplySplit(cam);
         if (_automation.PlayingClip is { IsPackage: true } && _automation.State is ReplayState.PLAYING)
             return "The camera cannot change while a highlights package plays.";
         if (_automation.PlayingClip is { } playing && playing.SourceId != cam &&
@@ -248,6 +270,57 @@ public sealed class OperatorController : IRemoteHandler
         var why = h is null ? "not started" : h.Status + (string.IsNullOrEmpty(h.LastError) ? "" : $": {h.LastError}");
         return $"Cam {cam} is not recording ({why}), so the replay cannot cut to it. Check Settings → Capture inputs.";
     }
+
+    private bool ReplayRunning => _automation.PlayingClip is not null && _automation.State is ReplayState.PLAYING or ReplayState.WAITING_FOR_PROGRAM;
+
+    /// <summary>
+    /// Puts the second angle beside the playing replay, or removes it when split screen is off. Prefers
+    /// <paramref name="cam"/>, then the camera already on the right, then the selected camera, then any other angle.
+    /// </summary>
+    private string? ApplySplit(int? cam = null)
+    {
+        if (!SplitScreen)
+        {
+            _playback.SetSplit(null);
+            SplitCamera = null;
+            return null;
+        }
+        if (_playback.Effects is null) return "Split screen is not available on this output.";
+        if (!ReplayRunning || _automation.PlayingClip is not { } p) return null; // applied when the next replay starts
+        if (p.IsPackage) return "Split screen is not available for a highlights package.";
+        if (cam == p.SourceId) return $"Cam {cam} is already the main picture.";
+
+        IEnumerable<int> angles = p.IsSaved ? _clips.Get(p.ClipId)?.Files.Keys.Order().ToList() ?? [] : _capture.RunningCameraIds;
+        var options = new[] { cam, SplitCamera, SelectedCamera }.OfType<int>().Concat(angles).Where(c => c != p.SourceId).Distinct();
+        foreach (var c in cam is null ? options : [cam.Value])
+        {
+            try
+            {
+                _playback.SetSplit(OpenClip(p with { SourceId = c }));
+                SplitCamera = c;
+                _diag.Info(LogCategory.Playback, $"Split screen: Cam {p.SourceId} | Cam {c}");
+                Changed?.Invoke();
+                return null;
+            }
+            catch (FrameUnavailableException e) when (cam is null) { _diag.Warn(LogCategory.Playback, e.Message); }
+            catch (FrameUnavailableException e) { return NotRecording(c) ?? e.Message; }
+        }
+        return "No second angle to show beside this replay.";
+    }
+
+    private string? SetView(ViewTransform v)
+    {
+        if (_playback.Effects is null) return "Zoom is not available on this output.";
+        if (!ReplayRunning) return "Zoom works while a replay plays.";
+        _playback.SetView(v);
+        return null;
+    }
+
+    /// <summary>Zooms the playing replay; for the mouse wheel and the zoom keys.</summary>
+    public string? ZoomBy(double factor) => SetView(_playback.View.ZoomBy(factor));
+
+    /// <summary>Pans the playing replay by a fraction of the visible picture; for dragging and the pan keys.</summary>
+    public string? PanBy(double dx, double dy) => SetView(_playback.View.PanBy(dx, dy));
 
     private string? CycleAngle(int dir)
     {

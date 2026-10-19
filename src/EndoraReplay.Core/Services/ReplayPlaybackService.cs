@@ -67,6 +67,31 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
 
     public void SetFormat(VideoFormat format) => _format = format;
 
+    /// <summary>Split screen and zoom renderer; without it both are unavailable.</summary>
+    public IFrameEffects? Effects { get; set; }
+
+    private volatile IFrameSequence? _split;
+    private volatile ViewTransform _view = ViewTransform.Identity;
+    private volatile int _effectsVersion;
+
+    /// <summary>Second angle shown beside the replay clip (split screen), or null. Cleared when a new replay starts.</summary>
+    public IFrameSequence? Split => _split;
+
+    /// <summary>Zoom and pan of the replay clip. Reset when a new replay starts.</summary>
+    public ViewTransform View => _view;
+
+    public void SetSplit(IFrameSequence? second)
+    {
+        _split = second;
+        _effectsVersion++;
+    }
+
+    public void SetView(ViewTransform view)
+    {
+        _view = view.Clamped();
+        _effectsVersion++;
+    }
+
     public void SetSpeed(double speed)
     {
         if (speed is <= 0 or > 2) throw new ArgumentOutOfRangeException(nameof(speed));
@@ -89,6 +114,9 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
         if (segments.Count == 0) throw new ArgumentException("Nothing to play.", nameof(segments));
         if (CheckOutput() is { } problem) throw new InvalidOperationException(problem);
         var job = new Job(this, segments, startDelayMs);
+        _split = null;
+        _view = ViewTransform.Identity;
+        _effectsVersion++;
         Job? old;
         lock (_gate)
         {
@@ -296,6 +324,11 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
             var idx = 0;
             var shownIdx = -1;
             EncodedFrame? frame = null;
+            EncodedFrame? shownFrame = null;
+            var shownVersion = -1;
+            var shownSplitIdx = -1;
+            IFrameSequence? splitSeq = null;
+            var splitIdx = 0;
             var cutFired = seg.CutPointIndex is null;
 
             while (!ct.IsCancellationRequested)
@@ -314,13 +347,36 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
                 if (target > seq.EndTicks + period / 2) break;
                 while (idx + 1 < seq.Count && seq.TicksAt(idx + 1) <= target) idx++;
 
+                var dirty = false;
                 if (idx != shownIdx)
                 {
                     frame = seq.Read(idx); // throws FrameUnavailableException: never substitute
                     shownIdx = idx;
                     _svc.PositionTicks = frame.TimestampTicks;
+                    dirty = true;
                 }
-                _svc._output.Present(frame!);
+
+                if (seg.Kind == PlayoutSegmentKind.Clip && _svc.Effects is { } fx)
+                {
+                    // Split screen: the second angle at the same moment on the shared clock.
+                    var split = _svc._split;
+                    if (!ReferenceEquals(split, splitSeq)) { splitSeq = split; splitIdx = 0; }
+                    var sIdx = -1;
+                    if (split is { Count: > 0 })
+                    {
+                        while (splitIdx + 1 < split.Count && split.TicksAt(splitIdx + 1) <= frame!.TimestampTicks) splitIdx++;
+                        sIdx = splitIdx;
+                    }
+                    var version = _svc._effectsVersion;
+                    if (dirty || version != shownVersion || sIdx != shownSplitIdx)
+                    {
+                        shownVersion = version;
+                        shownSplitIdx = sIdx;
+                        shownFrame = Render(fx, frame!, split, sIdx, _svc._view);
+                    }
+                }
+                else shownFrame = frame;
+                _svc._output.Present(shownFrame!);
 
                 if (!cutFired && idx >= seg.CutPointIndex)
                 {
@@ -345,6 +401,24 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
             {
                 _svc._diag.Info(LogCategory.Playback, $"{seg.Kind} complete");
                 _svc.SegmentCompleted?.Invoke(seg.Kind);
+            }
+        }
+
+        private bool _effectsFailed;
+
+        /// <summary>The replay frame with split screen and zoom applied. If that fails the plain frame is shown, never another.</summary>
+        private EncodedFrame Render(IFrameEffects fx, EncodedFrame frame, IFrameSequence? split, int splitIdx, ViewTransform view)
+        {
+            if (splitIdx < 0 && view.IsIdentity) return frame;
+            try
+            {
+                return fx.Apply(frame, splitIdx >= 0 ? split!.Read(splitIdx) : null, view);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                if (!_effectsFailed) _svc._diag.Error(LogCategory.Playback, $"Split screen / zoom failed, showing the plain replay: {e.Message}");
+                _effectsFailed = true;
+                return frame;
             }
         }
 
