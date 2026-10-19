@@ -422,4 +422,17 @@
         <Setter Property="Foreground" Value="{StaticResource Text}" />
         <Setter Property="BorderBrush" Value="{StaticResource Line2}" />
     </Style>
+    <!-- Right-click menus use the light Windows menu, so their text must be dark. The app-wide TextBlock style
+         (light text) is overridden inside them, including submenus such as the clip Tag list. -->
+    <Style TargetType="ContextMenu">
+        <Setter Property="Foreground" Value="Black" />
+        <Style.Resources>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                <Setter Property="Foreground" Value="Black" />
+            </Style>
+            <Style TargetType="MenuItem">
+                <Setter Property="Foreground" Value="Black" />
+            </Style>
+        </Style.Resources>
+    </Style>
 </ResourceDictionary>

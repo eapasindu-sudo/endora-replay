@@ -83,3 +83,20 @@ public class ConfigTests
         Assert.False(AccessCodeGenerator.Matches(code, null));
     }
 }
+
+public class CameraCountTests
+{
+    [Fact]
+    public void Camera_count_enables_only_the_first_cameras_and_leaves_program_alone()
+    {
+        var s = new AppSettings();
+        var program = s.Sources.Single(x => x.Role == SourceRole.Program);
+        program.Enabled = true;
+        s.SetCameraCount(6);
+        Assert.Equal(6, s.Ui.CameraCount);
+        Assert.Equal([1, 2, 3, 4, 5, 6], s.Sources.Where(x => x.Role == SourceRole.Camera && x.Enabled).Select(x => x.SourceId).Order());
+        Assert.True(program.Enabled);
+        s.SetCameraCount(20);
+        Assert.Equal(8, s.Ui.CameraCount);
+    }
+}

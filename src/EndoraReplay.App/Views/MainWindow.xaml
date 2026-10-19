@@ -96,9 +96,9 @@
                     <RowDefinition Height="12" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="12" />
-                    <RowDefinition Height="140" />
+                    <RowDefinition x:Name="ControlsRow" Height="140" />
                     <RowDefinition Height="12" />
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition x:Name="TilesRow" Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!-- Monitors -->
@@ -178,6 +178,8 @@
                 <Border Grid.Row="2" Style="{StaticResource PanelBorder}" Padding="12">
                     <StackPanel>
                         <DockPanel Margin="0,0,0,6">
+                            <Button x:Name="ControlsToggle" DockPanel.Dock="Right" Click="OnToggleControls" MinHeight="22" Padding="10,0" Margin="12,0,0,0" FontSize="11"
+                                    Content="▾ Minimise controls" ToolTip="Minimise the button panel so the camera previews get bigger" />
                             <TextBlock x:Name="TimelineLabel" Text="ROLLING BUFFER · CAM 1" Style="{StaticResource Label}" />
                             <TextBlock x:Name="TimelineScale" Text="LIVE" Style="{StaticResource Mono}" Foreground="{StaticResource Dim}" FontSize="11" HorizontalAlignment="Right" />
                         </DockPanel>
@@ -193,8 +195,24 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Controls, minimised: one compact row of the essential buttons -->
+                <Border x:Name="CompactControls" Grid.Row="4" Style="{StaticResource PanelBorder}" Padding="8" Visibility="Collapsed">
+                    <UniformGrid Rows="1">
+                        <Button Tag="Replay" Content="▶ REPLAY" Style="{StaticResource BtnRed}" Margin="0,0,6,0" />
+                        <Button Tag="Live" Content="LIVE" Style="{StaticResource BtnGreen}" Margin="0,0,6,0" />
+                        <Button Tag="Stop" Content="■ STOP" Margin="0,0,6,0" />
+                        <Button Tag="MarkIn" Content="MARK IN" Style="{StaticResource BtnBlue}" Margin="0,0,6,0" />
+                        <Button Tag="MarkOut" Content="MARK OUT" Style="{StaticResource BtnBlue}" Margin="0,0,6,0" />
+                        <Button Tag="Speed100" Content="100%" Margin="0,0,6,0" />
+                        <Button Tag="Speed50" Content="50%" Margin="0,0,6,0" />
+                        <Button Tag="Speed25" Content="25%" Margin="0,0,6,0" />
+                        <Button Tag="CancelAuto" Content="CANCEL AUTO" Style="{StaticResource BtnAmber}" Margin="0,0,6,0" />
+                        <Button Tag="EmergencyOverride" Content="OVERRIDE" Style="{StaticResource BtnDanger}" />
+                    </UniformGrid>
+                </Border>
+
                 <!-- Controls -->
-                <Grid Grid.Row="4">
+                <Grid x:Name="FullControls" Grid.Row="4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="12" />
@@ -278,7 +296,7 @@
                 </Grid>
 
                 <!-- Input tiles -->
-                <UniformGrid x:Name="Tiles" Grid.Row="6" Columns="8" />
+                <UniformGrid x:Name="Tiles" Grid.Row="6" Columns="8" SizeChanged="OnTilesSizeChanged" />
             </Grid>
 
             <!-- ================= SIDEBAR ================= -->

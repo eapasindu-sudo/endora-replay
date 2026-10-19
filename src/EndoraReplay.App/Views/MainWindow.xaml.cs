@@ -446,6 +446,7 @@ public partial class MainWindow : Window
     private void RefreshUi()
     {
         RefreshMeters();
+        ApplyLayoutIfChanged();
         var s = _host.Settings;
         var atem = _host.Atem.Snapshot;
         var auto = _host.Automation;

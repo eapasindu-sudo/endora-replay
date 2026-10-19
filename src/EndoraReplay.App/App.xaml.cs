@@ -15,6 +15,7 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnUnhandled;
+        AskCameraCount();
         var splash = new SplashWindow();
         splash.Show();
         var shownAt = DateTime.UtcNow;
@@ -40,6 +41,26 @@ public partial class App : Application
         MainWindow = main;
         main.Show();
         splash.Close();
+    }
+
+    /// <summary>Asks how many cameras are in use before anything starts recording, and saves the answer.</summary>
+    private static void AskCameraCount()
+    {
+        try
+        {
+            var path = AppSettings.DefaultSettingsPath;
+            var settings = AppSettings.Load(path);
+            if (!settings.Ui.AskCameraCountOnStart) return;
+            var w = new CameraCountWindow(settings.Ui.CameraCount, settings.Ui.AskCameraCountOnStart);
+            if (w.ShowDialog() != true) return;
+            settings.SetCameraCount(w.Count);
+            settings.Ui.AskCameraCountOnStart = w.AskAgain;
+            settings.Save(path);
+        }
+        catch (Exception)
+        {
+            // A broken settings file is reported by the normal start-up below.
+        }
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)

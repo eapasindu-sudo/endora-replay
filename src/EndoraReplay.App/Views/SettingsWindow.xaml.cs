@@ -205,6 +205,12 @@ public partial class SettingsWindow : Window
         Field(general, "Recording quality", Combo(new[] { ("Draft (70)", 70), ("Broadcast (90)", 90), ("Maximum (97)", 97) }, _edit.Buffer.JpegQuality,
             v => { _edit.Buffer.JpegQuality = v; Changed(); }), "Higher quality uses more disk and CPU.");
 
+        var count = Card(root, "Cameras in use");
+        Field(count, "Number of cameras", Combo(Enumerable.Range(1, 8).Select(n => (n.ToString(), n)), _edit.Ui.CameraCount,
+            v => { _edit.SetCameraCount(v); Changed(); Rebuild(); }), "Turns on cameras 1 to this number and turns the others off. The input previews grow to fill the space.");
+        Toggle(count, "Ask at start", _edit.Ui.AskCameraCountOnStart, v => { _edit.Ui.AskCameraCountOnStart = v; Changed(); },
+            "Endora asks how many cameras are in use each time it starts.");
+
         var card = Card(root, "Sources");
         var head = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var rescan = new Button { Content = "Rescan devices", Style = S("BtnBase"), Padding = new Thickness(12, 6, 12, 6) };

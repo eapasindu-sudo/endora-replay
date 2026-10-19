@@ -23,6 +23,9 @@ public sealed class AppSettings
     /// <summary>MIDI keyboard / controller: programmable buttons, jog wheel and T-bar.</summary>
     public Input.MidiSettings Midi { get; set; } = new();
 
+    /// <summary>Operator screen layout.</summary>
+    public UiSettings Ui { get; set; } = new();
+
     /// <summary>Web scoreboard shown over the ATEM Program on DSK 2.</summary>
     public ScoreboardSettings Scoreboard { get; set; } = new();
 
@@ -36,6 +39,15 @@ public sealed class AppSettings
             list.Add(new SourceSettings { SourceId = i, Name = $"Cam {i}", Enabled = i <= 4 });
         list.Add(new SourceSettings { SourceId = 0, Name = "Program", Role = SourceRole.Program, Enabled = false });
         return list;
+    }
+
+    /// <summary>Cameras in use: enables cameras 1..<paramref name="count"/> and turns the rest off, so only those record and show.</summary>
+    public void SetCameraCount(int count)
+    {
+        count = Math.Clamp(count, 1, MaxCameraSources);
+        Ui.CameraCount = count;
+        foreach (var s in Sources.Where(s => s.Role == SourceRole.Camera))
+            s.Enabled = s.SourceId <= count;
     }
 
     /// <summary>Returns a list of human-readable configuration problems. Empty means valid.</summary>
@@ -105,6 +117,18 @@ public sealed class AppSettings
         File.WriteAllText(tmp, JsonSerializer.Serialize(this, JsonOptions));
         File.Move(tmp, path, overwrite: true);
     }
+}
+
+public sealed class UiSettings
+{
+    /// <summary>Number of cameras in use (1-8); the input tiles grow to fill the space.</summary>
+    public int CameraCount { get; set; } = 4;
+
+    /// <summary>Ask for the number of cameras each time Endora starts.</summary>
+    public bool AskCameraCountOnStart { get; set; } = true;
+
+    /// <summary>Operator buttons minimised to one compact row so the input previews are larger.</summary>
+    public bool ControlsMinimized { get; set; }
 }
 
 public sealed class SourceSettings
