@@ -81,6 +81,8 @@ public partial class MainWindow : Window
         _host.Clips.ClipsChanged += () => Dispatcher.BeginInvoke(RefreshClips);
         _host.Operator.TagPickerRequested += id => Dispatcher.BeginInvoke(() => ShowTagPicker(id));
         _host.Updates.Changed += () => Dispatcher.BeginInvoke(RefreshUpdate);
+        OverBox.Text = _host.Overs.Label;
+        _host.Overs.Changed += () => Dispatcher.BeginInvoke(() => { if (!OverBox.IsKeyboardFocused) OverBox.Text = _host.Overs.Label; });
         _ = _host.Updates.RunBackgroundAsync(_cts.Token);
 
         RefreshClips();
@@ -385,12 +387,37 @@ public partial class MainWindow : Window
     // ================= clips =================
 
     private void OnTagFilter(object sender, SelectionChangedEventArgs e) => RefreshClips();
+    private void OnClipSearch(object sender, TextChangedEventArgs e) => RefreshClips();
+
+    private void OnBallNext(object sender, RoutedEventArgs e) => Run(OperatorActions.BallNext);
+    private void OnBallUndo(object sender, RoutedEventArgs e) => Run(OperatorActions.BallUndo);
+
+    private void OnOverKey(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { OnOverCommit(sender, e); Keyboard.ClearFocus(); e.Handled = true; }
+        else if (e.Key == Key.Escape) { OverBox.Text = _host.Overs.Label; Keyboard.ClearFocus(); e.Handled = true; }
+    }
+
+    private void OnOverCommit(object sender, RoutedEventArgs e)
+    {
+        if (OverBox.Text.Trim() != _host.Overs.Label) Run("SetOver", text: OverBox.Text);
+        OverBox.Text = _host.Overs.Label;
+    }
+
+    /// <summary>Clips whose tags, over or number match the search box (all clips when it is empty).</summary>
+    private bool MatchesSearch(Clip c)
+    {
+        var q = ClipSearch.Text.Trim();
+        if (q.Length == 0) return true;
+        if (q.StartsWith('#')) return $"#{c.Id}".StartsWith(q, StringComparison.Ordinal);
+        return c.Tags.Any(t => t.StartsWith(q, StringComparison.OrdinalIgnoreCase)) || c.Title.Contains(q, StringComparison.OrdinalIgnoreCase);
+    }
 
     private void RefreshClips()
     {
         var tag = TagFilter.SelectedIndex > 0 ? TagFilter.SelectedItem as string : null;
         var armed = _host.Automation.ArmedClip;
-        var list = _host.Clips.List(tag);
+        var list = _host.Clips.List(tag).Where(MatchesSearch).ToList();
         ClipHeader.Text = $"CLIP LIBRARY · {list.Count} CLIPS";
         _clips.Clear();
         foreach (var c in list.Take(200))

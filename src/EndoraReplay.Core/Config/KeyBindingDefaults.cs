@@ -34,6 +34,8 @@ public static class OperatorActions
     public const string PanRight = "PanRight";
     public const string PanUp = "PanUp";
     public const string PanDown = "PanDown";
+    public const string BallNext = "BallNext";
+    public const string BallUndo = "BallUndo";
     public static string Camera(int n) => $"Camera{n}";
 }
 
@@ -77,6 +79,8 @@ public static class KeyBindingDefaults
             [OperatorActions.PanRight] = "Ctrl+Right",
             [OperatorActions.PanUp] = "Ctrl+Up",
             [OperatorActions.PanDown] = "Ctrl+Down",
+            [OperatorActions.BallNext] = "B",
+            [OperatorActions.BallUndo] = "Shift+B",
         };
         for (var i = 1; i <= 8; i++) d[OperatorActions.Camera(i)] = $"D{i}";
         return d;

@@ -524,7 +524,8 @@ public partial class SettingsWindow : Window
     private static readonly (string Group, string[] Actions)[] ShortcutGroups =
     [
         ("Air", [OperatorActions.Replay, OperatorActions.Live, OperatorActions.Stop, OperatorActions.CancelAuto, OperatorActions.EmergencyOverride, OperatorActions.ClearError, OperatorActions.Scoreboard]),
-        ("Clips", [OperatorActions.MarkIn, OperatorActions.MarkOut, OperatorActions.SaveClip, OperatorActions.Tag, OperatorActions.Queue]),
+        ("Clips", [OperatorActions.MarkIn, OperatorActions.MarkOut, OperatorActions.SaveClip, OperatorActions.Tag, OperatorActions.Queue,
+            OperatorActions.BallNext, OperatorActions.BallUndo]),
         ("Cue", [OperatorActions.LiveMode, OperatorActions.JogMode, OperatorActions.FrameBack, OperatorActions.FrameForward, OperatorActions.ShuttleBack, OperatorActions.ShuttleForward]),
         ("Speed", [OperatorActions.Speed100, OperatorActions.Speed50, OperatorActions.Speed25]),
         ("Cameras", [OperatorActions.NextAngle, OperatorActions.PreviousAngle, .. Enumerable.Range(1, 8).Select(OperatorActions.Camera)]),
@@ -554,6 +555,8 @@ public partial class SettingsWindow : Window
         OperatorActions.Speed100 => "Speed 100%",
         OperatorActions.Speed50 => "Speed 50%",
         OperatorActions.Speed25 => "Speed 25%",
+        OperatorActions.BallNext => "Over: next ball",
+        OperatorActions.BallUndo => "Over: undo ball",
         OperatorActions.SplitScreen => "Split screen on/off",
         OperatorActions.ZoomIn => "Zoom in",
         OperatorActions.ZoomOut => "Zoom out",

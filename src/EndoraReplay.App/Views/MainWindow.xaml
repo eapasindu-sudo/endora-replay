@@ -334,6 +334,14 @@
                             <Button DockPanel.Dock="Right" Content="HIGHLIGHTS" Style="{StaticResource BtnBase}" Padding="8,3" Margin="0,0,6,0" FontSize="10" FontWeight="Bold"
                                     Click="OnClipHighlights" ToolTip="Arm the selected clips (or every clip shown) as one highlights package, oldest first, with the stinger between each. Then press REPLAY." />
                         </DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="12,0,12,8">
+                            <TextBlock Text="OVER" Style="{StaticResource Label}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBox x:Name="OverBox" Width="52" MinHeight="26" FontSize="13" FontWeight="Bold" KeyDown="OnOverKey" LostFocus="OnOverCommit"
+                                     ToolTip="Over.ball now, e.g. 12.4. New clips are tagged with it. Type to correct it, then Enter." />
+                            <Button Content="+1 BALL" Style="{StaticResource BtnBase}" Padding="8,3" Margin="6,0,0,0" FontSize="10" FontWeight="Bold" Click="OnBallNext" ToolTip="Count a legal delivery (B). Wides and no-balls are not counted." />
+                            <Button Content="UNDO" Style="{StaticResource BtnBase}" Padding="8,3" Margin="4,0,8,0" FontSize="10" FontWeight="Bold" Click="OnBallUndo" ToolTip="Undo the last change to the over count (Shift+B)." />
+                            <TextBox x:Name="ClipSearch" MinHeight="26" FontSize="11" TextChanged="OnClipSearch" ToolTip="Search tags and overs, e.g. WICKET or 12. or #15" />
+                        </DockPanel>
                         <Rectangle DockPanel.Dock="Top" Height="1" Fill="{StaticResource Line}" />
                         <ListBox x:Name="ClipList" Style="{StaticResource PlainList}" SelectionMode="Extended" MouseDoubleClick="OnClipDoubleClick" ToolTip="Double-click to arm. Ctrl+click or Shift+click to select several.">
                             <ListBox.ItemTemplate>

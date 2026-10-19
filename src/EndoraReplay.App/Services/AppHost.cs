@@ -35,6 +35,7 @@ public sealed class AppHost : IAsyncDisposable
     public AtemSwitcherService Atem { get; private set; } = null!;
     public FileStingerProvider Stingers { get; } = new();
     public LumaKeyCompositor StingerCompositor { get; } = new(8, 70);
+    public Core.Model.OverCounter Overs { get; private set; } = null!;
     public ReplayAutomationService Automation { get; private set; } = null!;
     public OperatorController Operator { get; private set; } = null!;
     public RemoteServer Remote { get; private set; } = null!;
@@ -100,6 +101,8 @@ public sealed class AppHost : IAsyncDisposable
             r => op!.OpenClip(r), Diagnostics, Clock, StingerCompositor, s.Format);
         op = new OperatorController(s, Clock, Capture, Buffers, Clips, Playback, Automation, Diagnostics, () => Atem.Snapshot);
         Operator = op;
+        Overs = new Core.Model.OverCounter(Path.Combine(s.Buffer.DataFolder, "overs.json"));
+        op.Overs = Overs;
         op.BetweenStinger = () => Stingers.Get(isReturn: false);
         op.Compositor = StingerCompositor;
         Clips.IsInUse = id => Automation.ArmedClip?.Uses(id) == true || Automation.PlayingClip?.Uses(id) == true || op.Queue.Any(q => q.Uses(id));

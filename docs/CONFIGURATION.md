@@ -36,7 +36,7 @@ validates.
 | Tab / Shift+Tab | Next / previous camera | F1 / F2 / F3 | Speed 100 / 50 / 25 % |
 | F5 | Scoreboard on/off | F6 | Split screen on/off |
 | + / − | Zoom replay in / out | 0 | Zoom reset |
-| Ctrl+arrows | Pan the zoomed replay | | |
+| Ctrl+arrows | Pan the zoomed replay | B / Shift+B | Over: next ball / undo |
 
 ## Replay tools
 
@@ -54,6 +54,12 @@ These are new and have not been tested on the real hardware yet.
   or dragging pans, 0 or a double-click resets. Each new replay starts unzoomed. All of these can also be learnt on
   a MIDI controller. Split screen and zoom re-encode every replay frame on the CPU; check the replay stays smooth on
   the match PC.
+
+- **Over and ball tags:** above the clip library, press +1 BALL (or B) after each legal delivery; the box shows
+  the count like a scoreboard (12.4; after 12.6 comes 13.1). Type a value and press Enter to correct it. Once the
+  first ball is counted, every new clip gets the over.ball as a tag. The search box finds tags and overs
+  (WICKET, 12. for the 13th over, #15 for a clip number). The count is kept in `overs.json` in the data folder;
+  type 0 to start a new innings.
 
 ## Typical cricket setup
 

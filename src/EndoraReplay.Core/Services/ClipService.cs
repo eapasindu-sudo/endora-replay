@@ -187,6 +187,17 @@ public sealed class ClipService
         ClipsChanged?.Invoke();
     }
 
+    /// <summary>Adds a tag if the clip does not have it yet.</summary>
+    public void AddTag(long clipId, string tag)
+    {
+        var c = _storage.GetClip(clipId) ?? throw new KeyNotFoundException($"Clip #{clipId} not found.");
+        var t = tag.Trim().ToUpperInvariant();
+        if (t.Length == 0 || c.Tags.Contains(t)) return;
+        c.Tags.Add(t);
+        _storage.UpdateClip(c);
+        ClipsChanged?.Invoke();
+    }
+
     public void ToggleTag(long clipId, string tag)
     {
         var c = _storage.GetClip(clipId) ?? throw new KeyNotFoundException($"Clip #{clipId} not found.");

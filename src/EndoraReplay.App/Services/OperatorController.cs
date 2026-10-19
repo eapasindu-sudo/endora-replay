@@ -55,6 +55,9 @@ public sealed class OperatorController : IRemoteHandler
         _playback.SegmentStarted += k => { if (k == PlayoutSegmentKind.Clip && SplitScreen) ApplySplit(); };
     }
 
+    /// <summary>Over and ball count; new clips are tagged with it once the first ball is counted. Set by the app host.</summary>
+    public OverCounter? Overs { get; set; }
+
     /// <summary>Split screen is on: replays show a second angle beside the main one.</summary>
     public bool SplitScreen { get; private set; }
 
@@ -167,6 +170,16 @@ public sealed class OperatorController : IRemoteHandler
             case OperatorActions.ShuttleForward: return Jog((int)Math.Round(Format.FramesPerSecond));
             case "Jog": return Jog((int)(value ?? 0));
             case "Seek": return Seek(value ?? 0);
+
+            case OperatorActions.BallNext:
+                if (Overs is null) return "Over count is not available.";
+                Overs.AddBall();
+                return null;
+            case OperatorActions.BallUndo:
+                return Overs?.Undo() == true ? null : "Nothing to undo.";
+            case "SetOver":
+                if (Overs is null) return "Over count is not available.";
+                return Overs.TrySet(text ?? "") ? null : $"'{text}' is not an over count such as 12.4.";
 
             case OperatorActions.SplitScreen:
                 SplitScreen = !SplitScreen;
@@ -368,11 +381,13 @@ public sealed class OperatorController : IRemoteHandler
         _clips.ClearMarks();
 
         var cams = _capture.RunningCameraIds;
+        var ball = Overs is { Started: true } o ? o.Label : null;
         _ = Task.Run(async () =>
         {
             try
             {
                 var clip = await _clips.SaveClipAsync(inT, outT, cam, cams).ConfigureAwait(false);
+                if (ball is not null) _clips.AddTag(clip.Id, ball);
                 LastSavedClipId = clip.Id;
                 if (_automation.ArmedClip is { ClipId: 0 } a && a.InTicks == inT && a.OutTicks == outT)
                     _automation.Post(new ArmRequested(a with { ClipId = clip.Id, Description = Describe(clip.Id, a.SourceId, inT, outT) }));
