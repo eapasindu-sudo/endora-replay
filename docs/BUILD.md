@@ -59,7 +59,7 @@ Start menu and desktop shortcuts.
 GitHub Actions (`.github/workflows/build.yml`) builds every push and pull request on `windows-latest`, runs
 the tests, and uploads the installer as a build artifact.
 
-To ship an update to installed PCs:
+To ship an update to installed PCs, either run the workflow from the Actions tab with a version (for example `1.2.0`), or push a tag:
 
 ```bash
 git tag v1.2.0

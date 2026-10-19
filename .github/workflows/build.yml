@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to publish, e.g. 1.0.0 (empty = build only)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -30,9 +35,12 @@ jobs:
         id: ver
         shell: pwsh
         run: |
-          if ("${{ github.ref_type }}" -eq "tag") { $v = "${{ github.ref_name }}".TrimStart("v") }
+          $release = "false"
+          if ("${{ github.ref_type }}" -eq "tag") { $v = "${{ github.ref_name }}".TrimStart("v"); $release = "true" }
+          elseif ("${{ inputs.version }}" -ne "") { $v = "${{ inputs.version }}".TrimStart("v"); $release = "true" }
           else { $v = "1.0.0-ci.${{ github.run_number }}" }
           "version=$v" >> $env:GITHUB_OUTPUT
+          "release=$release" >> $env:GITHUB_OUTPUT
           Write-Host "Building $v"
 
       - name: Restore
@@ -50,7 +58,7 @@ jobs:
         run: dotnet tool install -g vpk --version 1.2.161
 
       - name: Download previous release (for delta updates)
-        if: github.ref_type == 'tag'
+        if: steps.ver.outputs.release == 'true'
         continue-on-error: true
         run: vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
 
@@ -66,7 +74,7 @@ jobs:
           path: Releases/*
 
       - name: Publish GitHub release (enables auto-update)
-        if: github.ref_type == 'tag'
+        if: steps.ver.outputs.release == 'true'
         run: >
           vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
-          --publish --releaseName "Endora Replay ${{ steps.ver.outputs.version }}" --tag ${{ github.ref_name }} --outputDir Releases
+          --publish --releaseName "Endora Replay ${{ steps.ver.outputs.version }}" --tag v${{ steps.ver.outputs.version }} --targetCommitish ${{ github.sha }} --outputDir Releases
