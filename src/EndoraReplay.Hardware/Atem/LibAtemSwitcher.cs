@@ -1,0 +1,207 @@
+using EndoraReplay.Core.Abstractions;
+using EndoraReplay.Core.Model;
+using LibAtem.Commands;
+using LibAtem.Commands.DeviceProfile;
+using LibAtem.Commands.MixEffects;
+using LibAtem.Commands.MixEffects.Transition;
+using LibAtem.Commands.Settings;
+using LibAtem.Common;
+using LibAtem.Net;
+
+namespace EndoraReplay.Hardware.Atem;
+
+/// <summary>
+/// ATEM control over Ethernet using the open-source LibAtem protocol implementation (LGPL-3.0).
+/// This is NOT the official Blackmagic SDK; it is offered because it needs no SDK install and builds in CI.
+/// HARDWARE PATH: validate against the actual ATEM Mini Extreme firmware before a live show.
+/// </summary>
+public sealed class LibAtemSwitcher : IAtemSwitcher
+{
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
+    private readonly object _gate = new();
+    private AtemClient? _client;
+    private MixEffectBlockId _me = MixEffectBlockId.One;
+    private AtemSnapshot _snapshot = AtemSnapshot.Disconnected;
+    private TaskCompletionSource? _connected;
+    private readonly Dictionary<int, (bool Program, bool Preview)> _tally = [];
+
+    public AtemBackendKind Kind => AtemBackendKind.NetworkProtocol;
+    public bool IsSimulated => false;
+    public AtemSnapshot Snapshot { get { lock (_gate) return _snapshot; } }
+
+    public event Action<AtemSnapshot>? StateChanged;
+    public event Action<string>? ConnectionLost;
+
+    public async Task ConnectAsync(string address, int mixEffectBlock, CancellationToken cancellationToken)
+    {
+        await DisconnectAsync().ConfigureAwait(false);
+        _me = (MixEffectBlockId)Math.Clamp(mixEffectBlock - 1, 0, 3);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var client = new AtemClient(address, false);
+        lock (_gate)
+        {
+            _client = client;
+            _connected = tcs;
+            _tally.Clear();
+            _snapshot = AtemSnapshot.Disconnected;
+        }
+        client.OnConnection += OnConnection;
+        client.OnDisconnect += OnDisconnect;
+        client.OnReceive += OnReceive;
+        client.Connect();
+        try
+        {
+            await tcs.Task.WaitAsync(ConnectTimeout, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            await DisconnectAsync().ConfigureAwait(false);
+            throw new TimeoutException($"No response from ATEM at {address}.");
+        }
+    }
+
+    private void OnConnection(object sender)
+    {
+        if (!ReferenceEquals(sender, _client)) return;
+        Update(s => s with { Connected = true });
+        _connected?.TrySetResult();
+    }
+
+    private void OnDisconnect(object sender)
+    {
+        if (!ReferenceEquals(sender, _client)) return;
+        var was = Snapshot.Connected;
+        Update(_ => AtemSnapshot.Disconnected);
+        if (was) ConnectionLost?.Invoke("ATEM stopped responding.");
+    }
+
+    private void OnReceive(object sender, IReadOnlyList<ICommand> commands)
+    {
+        if (!ReferenceEquals(sender, _client)) return;
+        var changed = false;
+        lock (_gate)
+        {
+            foreach (var cmd in commands)
+            {
+                switch (cmd)
+                {
+                    case ProgramInputGetCommand p when p.Index == _me:
+                        _snapshot = _snapshot with { ProgramInput = (int)p.Source };
+                        changed = true;
+                        break;
+                    case PreviewInputGetCommand p when p.Index == _me:
+                        _snapshot = _snapshot with { PreviewInput = (int)p.Source };
+                        changed = true;
+                        break;
+                    case TransitionPositionGetCommand t when t.Index == _me:
+                        if (_snapshot.InTransition != t.InTransition)
+                        {
+                            _snapshot = _snapshot with { InTransition = t.InTransition };
+                            changed = true;
+                        }
+                        break;
+                    case TallyBySourceCommand t:
+                        _tally.Clear();
+                        foreach (var (src, state) in t.Tally) _tally[(int)src] = (state.Item1, state.Item2);
+                        _snapshot = _snapshot with
+                        {
+                            ProgramTally = _tally.Where(kv => kv.Value.Program).Select(kv => kv.Key).ToHashSet(),
+                            PreviewTally = _tally.Where(kv => kv.Value.Preview).Select(kv => kv.Key).ToHashSet(),
+                        };
+                        changed = true;
+                        break;
+                    case ProductIdentifierCommand pid:
+                        _snapshot = _snapshot with { ModelName = pid.Name };
+                        changed = true;
+                        break;
+                    case TopologyV8Command top:
+                        _snapshot = _snapshot with { StingerCount = (int)top.Stingers };
+                        break;
+                    case TopologyCommand top:
+                        _snapshot = _snapshot with { StingerCount = (int)top.Stingers };
+                        break;
+                    case InputPropertiesGetCommand ip when (int)ip.Id is >= 1 and <= 40:
+                        var names = new Dictionary<int, string>(_snapshot.InputNames ?? new Dictionary<int, string>()) { [(int)ip.Id] = ip.LongName };
+                        _snapshot = _snapshot with { InputNames = names };
+                        changed = true;
+                        break;
+                    case VideoModeGetCommand vm:
+                        _snapshot = _snapshot with { VideoMode = vm.VideoMode.ToString() };
+                        changed = true;
+                        break;
+                }
+            }
+        }
+        if (changed && Snapshot.Connected) StateChanged?.Invoke(Snapshot);
+    }
+
+    public Task SetPreviewInputAsync(int input)
+    {
+        Send(new PreviewInputSetCommand { Index = _me, Source = (VideoSource)input });
+        return Task.CompletedTask;
+    }
+
+    public Task SetNextTransitionStyleAsync(AtemTransitionStyle style)
+    {
+        if (style == AtemTransitionStyle.Stinger && Snapshot.StingerCount == 0)
+            throw new NotSupportedException($"{Snapshot.ModelName} has no stinger transition. Use Endora stinger mode.");
+        Send(new TransitionPropertiesSetCommand
+        {
+            Index = _me,
+            Mask = TransitionPropertiesSetCommand.MaskFlags.NextStyle,
+            NextStyle = style switch
+            {
+                AtemTransitionStyle.Mix => TransitionStyle.Mix,
+                AtemTransitionStyle.Dip => TransitionStyle.Dip,
+                AtemTransitionStyle.Wipe => TransitionStyle.Wipe,
+                AtemTransitionStyle.Dve => TransitionStyle.DVE,
+                AtemTransitionStyle.Stinger => TransitionStyle.Stinger,
+                _ => TransitionStyle.Mix,
+            },
+        });
+        return Task.CompletedTask;
+    }
+
+    public Task PerformAutoTransitionAsync()
+    {
+        Send(new MixEffectAutoCommand { Index = _me });
+        return Task.CompletedTask;
+    }
+
+    public Task PerformCutAsync()
+    {
+        Send(new MixEffectCutCommand { Index = _me });
+        return Task.CompletedTask;
+    }
+
+    private void Send(ICommand cmd)
+    {
+        var c = _client;
+        if (c is null || !Snapshot.Connected) throw new InvalidOperationException("ATEM not connected.");
+        c.SendCommand(cmd);
+    }
+
+    private void Update(Func<AtemSnapshot, AtemSnapshot> f)
+    {
+        AtemSnapshot s;
+        lock (_gate) { _snapshot = f(_snapshot); s = _snapshot; }
+        StateChanged?.Invoke(s);
+    }
+
+    public Task DisconnectAsync()
+    {
+        AtemClient? c;
+        lock (_gate) { c = _client; _client = null; }
+        if (c is not null)
+        {
+            c.OnConnection -= OnConnection;
+            c.OnDisconnect -= OnDisconnect;
+            c.OnReceive -= OnReceive;
+            try { c.Dispose(); } catch (Exception) { }
+        }
+        lock (_gate) _snapshot = AtemSnapshot.Disconnected;
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync() => await DisconnectAsync().ConfigureAwait(false);
+}

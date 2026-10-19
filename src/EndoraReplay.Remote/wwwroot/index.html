@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0d10">
+<title>Endora Remote</title>
+<style>
+:root{--bg:#0b0d10;--panel:#12161b;--panel2:#171c22;--line:#232a33;--line2:#2d3640;--text:#e6ebf0;--dim:#8a96a3;--red:#ff3b3b;--green:#20d07a;--amber:#ffb020;--blue:#3aa0ff;--violet:#9b7bff;--accent:#ff6a1a}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Inter,Roboto,sans-serif;font-size:13px;height:100%;overflow:hidden;touch-action:manipulation}
+.app{height:100%;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 10px);gap:9px;max-width:520px;margin:0 auto}
+.row{display:flex;gap:7px;align-items:center}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.14em;font-size:12px}
+.mark{width:26px;height:26px;border-radius:7px;background:conic-gradient(from 210deg,var(--accent),#ff2d55,var(--accent));display:grid;place-items:center;font-size:11px;color:#fff}
+.sp{flex:1}
+.chip{height:26px;padding:0 9px;border-radius:7px;display:flex;align-items:center;gap:6px;font-weight:800;font-size:10px;letter-spacing:.06em;background:var(--panel2);border:1px solid var(--line)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.st-armed{color:var(--amber);border-color:rgba(255,176,32,.5)} .st-armed .dot{background:var(--amber)}
+.st-playing{color:#fff;background:var(--red);border-color:var(--red)} .st-playing .dot{background:#fff}
+.st-error{color:#fff;background:#7a1010;border-color:var(--red)}
+.st-ok .dot{background:var(--green)}
+.pill{flex:1;height:28px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;gap:7px;padding:0 9px;font-weight:700;font-size:11px}
+.mon{position:relative;border-radius:12px;overflow:hidden;background:#000;border:2px solid var(--green);aspect-ratio:16/9}
+.mon img{width:100%;height:100%;object-fit:cover;display:block}
+.mon .tag{position:absolute;top:8px;left:8px;padding:3px 7px;border-radius:5px;background:var(--green);color:#002;font-weight:800;font-size:10px;letter-spacing:.1em}
+.mon .bl{position:absolute;bottom:8px;left:8px;right:8px;display:flex;justify-content:space-between}
+.mon .c{padding:3px 7px;border-radius:5px;background:rgba(0,0,0,.65);font-weight:700;font-size:11px;font-family:ui-monospace,Menlo,monospace}
+.nosig{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);font-weight:800;letter-spacing:.14em;background:repeating-linear-gradient(135deg,#14181d 0 12px,#101317 12px 24px)}
+.tl{position:relative;height:28px;border-radius:7px;background:#0a0c0f;border:1px solid var(--line);overflow:hidden}
+.tl .rng{position:absolute;top:4px;bottom:4px;background:rgba(58,160,255,.22);border:1px solid var(--blue);border-radius:4px}
+.tl .ph{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.tl .live{position:absolute;right:0;top:0;bottom:0;width:3px;background:var(--red)}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.btn{height:40px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-weight:800;letter-spacing:.05em;font-size:13px;display:flex;align-items:center;justify-content:center;transition:transform .06s}
+.btn:active{transform:scale(.96)}
+.btn.sel{background:rgba(58,160,255,.2);border-color:var(--blue)}
+.btn.pgm{box-shadow:inset 0 -3px 0 var(--red)}
+.btn.bad{opacity:.45}
+.btn.on{background:rgba(58,160,255,.16);border-color:var(--blue);color:#cfe6ff}
+.btn.big{height:62px;font-size:18px}
+.b-red{background:linear-gradient(#e0262b,#a8141a);border-color:#ff5a5a;color:#fff}
+.b-green{background:linear-gradient(#17b86a,#0c7f48);border-color:#3df29a;color:#fff}
+.b-amber{background:rgba(255,176,32,.12);border-color:rgba(255,176,32,.6);color:var(--amber)}
+.b-danger{background:repeating-linear-gradient(45deg,#3a0d0d 0 8px,#2a0808 8px 16px);border-color:var(--red);color:#ffb3b3;font-size:11px}
+.jog{width:118px;height:118px;flex:none;border-radius:50%;background:radial-gradient(circle at 50% 40%,#2a323b,#0e1216 70%);border:2px solid var(--line2);position:relative;touch-action:none}
+.jog:before{content:"";position:absolute;inset:14px;border-radius:50%;border:1px dashed #3a4550}
+.jog .knob{position:absolute;width:16px;height:16px;border-radius:50%;background:#3a4550;top:12px;left:49px;box-shadow:inset 0 2px 3px #000}
+.tabs{display:flex;gap:6px}
+.tabs .btn{flex:1;height:32px;font-size:11px}
+.clip{display:flex;gap:10px;align-items:center;padding:9px;border-radius:10px;background:var(--panel);border:1px solid var(--line)}
+.clip.armed{border-color:var(--amber)}
+.tagp{padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(58,160,255,.15);color:#9dd0ff}
+#clips{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:7px;-webkit-overflow-scrolling:touch;user-select:none}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);background:#2a1214;border:1px solid var(--red);color:#ffd0d0;padding:10px 14px;border-radius:10px;font-weight:600;max-width:90%;display:none;z-index:10}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:9}
+.sheet .in{background:var(--panel);border-top:1px solid var(--line2);border-radius:16px 16px 0 0;width:100%;padding:16px 12px calc(env(safe-area-inset-bottom) + 16px);display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.offline{position:fixed;inset:0;background:rgba(11,13,16,.92);display:none;place-items:center;text-align:center;z-index:20;padding:30px;line-height:1.6;color:var(--dim)}
+.offline b{color:var(--text);font-size:16px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="row">
+    <div class="logo"><div class="mark">▶</div>ENDORA</div>
+    <div class="sp"></div>
+    <div class="chip" id="state"><span class="dot"></span><span>—</span></div>
+  </div>
+  <div class="row">
+    <div class="pill"><span class="dot" style="background:var(--red)"></span><span id="pgm">PGM —</span></div>
+    <div class="pill"><span class="dot" style="background:var(--green)"></span><span id="pvw">PVW —</span></div>
+  </div>
+  <div class="tabs"><div class="btn on" data-tab="ctl">CONTROL</div><div class="btn" data-tab="clp">CLIPS</div></div>
+
+  <div id="ctl" style="display:flex;flex-direction:column;gap:9px;flex:1;min-height:0">
+    <div class="mon"><img id="img" alt=""><div class="nosig hidden" id="nosig">NO SIGNAL</div><div class="tag" id="camtag">CAM —</div>
+      <div class="bl"><span class="c" id="pos">LIVE</span><span class="c" id="spd" style="color:var(--violet)">50%</span></div></div>
+    <div class="tl"><div class="rng" id="rng" style="display:none"></div><div class="ph" id="ph"></div><div class="live"></div></div>
+    <div class="grid4" id="cams"></div>
+    <div class="row" style="gap:9px">
+      <div class="jog" id="jog"><div class="knob" id="knob"></div></div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div class="btn on" data-a="MarkIn">IN</div><div class="btn on" data-a="MarkOut">OUT</div>
+        <div class="btn" id="speedBtn">50%</div><div class="btn" id="tagBtn">TAG</div>
+        <div class="btn" data-a="LiveMode">LIVE</div><div class="btn" data-a="SaveClip">SAVE</div>
+      </div>
+    </div>
+    <div class="sp"></div>
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px" class="transport"><div class="btn big b-red" data-a="Replay">▶ REPLAY</div><div class="btn big b-green" data-a="Live">LIVE</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" class="transport"><div class="btn" data-a="Stop">■ STOP</div><div class="btn b-amber" data-a="CancelAuto">CANCEL</div><div class="btn b-danger" id="ovr">HOLD: OVERRIDE</div></div>
+  </div>
+
+  <div id="clp" class="hidden" style="flex:1;display:flex;flex-direction:column;gap:8px;min-height:0">
+    <div id="clips"></div>
+  </div>
+</div>
+<div class="sheet" id="sheet"><div class="in" id="tags"></div></div>
+<div class="toast" id="toast"></div>
+<div class="offline" id="offline"><div><b>Reconnecting to Endora…</b><br>Make sure this phone is on the same Wi-Fi as the replay PC.<br>If the code changed, scan the new QR code.</div></div>
+
+<script>
+(() => {
+  const code = decodeURIComponent(location.pathname.split('/').pop());
+  const $ = id => document.getElementById(id);
+  let ws, st = null, lastTagClip = null, retry = 0;
+  const name = (navigator.userAgent.match(/iPhone|iPad|Android/) || ['Phone'])[0];
+
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',2600); }
+  function send(action, extra={}){
+    if(!ws || ws.readyState!==1){ toast('Not connected'); return; }
+    ws.send(JSON.stringify(Object.assign({action}, extra)));
+    if(navigator.vibrate) navigator.vibrate(12);
+  }
+
+  function connect(){
+    const proto = location.protocol==='https:'?'wss':'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`);
+    ws.onopen = () => { retry=0; $('offline').style.display='none'; };
+    ws.onmessage = e => {
+      const m = JSON.parse(e.data);
+      if(m.type==='state'){ st=m.state; render(); }
+      else if(m.type==='ack' && !m.ok) toast(m.error || 'Refused');
+    };
+    ws.onclose = () => { $('offline').style.display='grid'; setTimeout(connect, Math.min(5000, 500*(++retry))); };
+  }
+
+  // cameras
+  const cams=$('cams');
+  for(let i=1;i<=8;i++){ const b=document.createElement('div'); b.className='btn'; b.textContent=i; b.dataset.cam=i; b.onclick=()=>send('Camera'+i); cams.appendChild(b); }
+
+  function fmt(s){ if(s==null) return '—'; const neg=s<0; s=Math.abs(s); return (neg?'-':'')+String(Math.floor(s/60)).padStart(2,'0')+':'+(s%60).toFixed(2).padStart(5,'0'); }
+
+  function render(){
+    if(!st) return;
+    const sc=$('state'); const s=st.state;
+    sc.className='chip '+(s==='PLAYING'||s==='WAITING_FOR_PROGRAM'?'st-playing':s==='REPLAY_ARMED'?'st-armed':s==='ERROR'?'st-error':'st-ok');
+    sc.lastElementChild.textContent = st.override ? 'OVERRIDE' : s.replace(/_/g,' ');
+    $('pgm').textContent = st.atemConnected ? 'PGM '+(st.program===st.replayInput?'IN '+st.program+' · REPLAY':(st.program ?? '—')) : 'ATEM OFFLINE';
+    $('pvw').textContent = st.atemConnected ? 'PVW '+(st.preview ?? '—') : '—';
+    $('camtag').textContent = 'CAM '+st.selectedCamera;
+    $('pos').textContent = st.mode==='Live' ? 'LIVE' : fmt(st.position);
+    $('spd').textContent = Math.round(st.speed*100)+'%';
+    $('speedBtn').textContent = Math.round(st.speed*100)+'%';
+    const buf=Math.max(1,st.bufferSeconds);
+    const x = v => Math.min(100,Math.max(0,100+v/buf*100));
+    $('ph').style.left = (st.mode==='Live'?99.5:x(st.position))+'%';
+    if(st.markIn!=null || st.markOut!=null){ const a=x(st.markIn ?? st.position), b=x(st.markOut ?? 0); $('rng').style.display='block'; $('rng').style.left=Math.min(a,b)+'%'; $('rng').style.width=Math.max(1,Math.abs(b-a))+'%'; }
+    else $('rng').style.display='none';
+    [...cams.children].forEach(b=>{
+      const id=+b.dataset.cam; const cam=st.cameras.find(c=>c.id===id);
+      b.classList.toggle('sel', id===st.selectedCamera);
+      b.classList.toggle('bad', !cam || (cam.status!=='Signal' && cam.status!=='Dropping'));
+    });
+    document.querySelectorAll('.transport').forEach(t=>t.style.opacity = st.allowTransport?1:.35);
+    $('nosig').classList.toggle('hidden', !!st.cameras.find(c=>c.id===st.selectedCamera && (c.status==='Signal'||c.status==='Dropping')));
+    if(!$('tags').childElementCount) renderTags();
+  }
+
+  // preview polling (only when visible)
+  let imgBusy=false;
+  setInterval(()=>{
+    if(document.hidden || imgBusy || !st || $('ctl').classList.contains('hidden')) return;
+    imgBusy=true; const img=$('img'); const u=`/api/preview.jpg?code=${encodeURIComponent(code)}&src=${st.selectedCamera}&t=${Date.now()}`;
+    const n=new Image(); n.onload=()=>{img.src=n.src; imgBusy=false;}; n.onerror=()=>imgBusy=false; n.src=u;
+  }, 160);
+
+  // buttons
+  document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>send(b.dataset.a));
+  $('speedBtn').onclick=()=>{ const s=st?.speed ?? 1; send(s>=1?'Speed50':s>=0.5?'Speed25':'Speed100'); };
+
+  // override needs a 1 s hold
+  let ovrTimer; const ovr=$('ovr');
+  ovr.addEventListener('touchstart',e=>{e.preventDefault(); ovr.style.opacity=.6; ovrTimer=setTimeout(()=>{send('EmergencyOverride'); ovr.style.opacity=1;},1000);});
+  ovr.addEventListener('touchend',()=>{clearTimeout(ovrTimer); ovr.style.opacity=1;});
+  ovr.addEventListener('mousedown',()=>{ovrTimer=setTimeout(()=>send('EmergencyOverride'),1000);});
+  ovr.addEventListener('mouseup',()=>clearTimeout(ovrTimer));
+
+  // tags
+  function renderTags(){
+    const t=$('tags'); t.innerHTML='';
+    (st?.tags || ['WICKET','4','6','CATCH','NOT OUT','REVIEW']).forEach(tag=>{
+      const b=document.createElement('div'); b.className='btn'; b.textContent=tag;
+      b.onclick=()=>{ send('SetTag',{text:tag, clipId:lastTagClip}); $('sheet').style.display='none'; lastTagClip=null; };
+      t.appendChild(b);
+    });
+  }
+  $('tagBtn').onclick=()=>{ lastTagClip=null; $('sheet').style.display='flex'; };
+  $('sheet').onclick=e=>{ if(e.target.id==='sheet') $('sheet').style.display='none'; };
+
+  // jog wheel: 10 degrees = 1 frame
+  const jog=$('jog'), knob=$('knob'); let lastAng=null, acc=0, rot=0;
+  const ang=e=>{ const r=jog.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return Math.atan2(p.clientY-(r.top+r.height/2), p.clientX-(r.left+r.width/2))*180/Math.PI; };
+  const move=e=>{ if(lastAng===null) return; e.preventDefault(); const a=ang(e); let d=a-lastAng; if(d>180)d-=360; if(d<-180)d+=360; lastAng=a; acc+=d; rot+=d;
+    jog.style.transform=`rotate(${rot}deg)`; const f=Math.trunc(acc/10); if(f!==0){ acc-=f*10; send('Jog',{value:f}); } };
+  jog.addEventListener('touchstart',e=>{lastAng=ang(e);},{passive:true}); jog.addEventListener('touchmove',move,{passive:false}); jog.addEventListener('touchend',()=>lastAng=null);
+  jog.addEventListener('mousedown',e=>lastAng=ang(e)); window.addEventListener('mousemove',move); window.addEventListener('mouseup',()=>lastAng=null);
+
+  // tabs + clips
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x===b));
+    $('ctl').classList.toggle('hidden', b.dataset.tab!=='ctl'); $('clp').classList.toggle('hidden', b.dataset.tab!=='clp');
+    if(b.dataset.tab==='clp') loadClips();
+  });
+  async function loadClips(){
+    try{
+      const r=await fetch(`/api/clips?code=${encodeURIComponent(code)}`); if(!r.ok) return;
+      const list=await r.json(); const c=$('clips'); c.innerHTML='';
+      list.forEach(x=>{
+        const d=document.createElement('div'); d.className='clip'+(x.armed?' armed':'');
+        d.innerHTML=`<div style="flex:1;min-width:0"><div class="row"><b>#${x.id}</b>${x.tags?x.tags.split(',').map(t=>`<span class="tagp">${t}</span>`).join(''):''}</div><div style="color:var(--dim);font-size:11px;margin-top:3px">Cam ${x.source} · ${x.seconds.toFixed(1)} s</div></div>`;
+        const tag=document.createElement('div'); tag.className='btn'; tag.style.width='54px'; tag.textContent='TAG'; tag.onclick=()=>{lastTagClip=x.id; $('sheet').style.display='flex';};
+        const arm=document.createElement('div'); arm.className='btn'; arm.style.width='54px'; arm.textContent='ARM'; arm.onclick=()=>send('ArmClip',{clipId:x.id});
+        d.append(tag, arm); c.appendChild(d);
+      });
+    }catch(e){}
+  }
+  setInterval(()=>{ if(!$('clp').classList.contains('hidden')) loadClips(); }, 3000);
+
+  connect();
+})();
+</script>
+</body>
+</html>

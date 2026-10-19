@@ -48,8 +48,16 @@ public sealed record AtemSnapshot(
     bool InTransition,
     IReadOnlySet<int> ProgramTally,
     IReadOnlySet<int> PreviewTally,
-    string? VideoMode)
+    string? VideoMode,
+    int? StingerCount = null,
+    IReadOnlyDictionary<int, string>? InputNames = null)
 {
+    /// <summary>Display name of an input as configured on the switcher, e.g. "HDMI 8" or a custom label.</summary>
+    public string InputName(int input) => InputNames is not null && InputNames.TryGetValue(input, out var n) && n.Length > 0 ? n : $"Input {input}";
+
+    /// <summary>False when the switcher reported no stinger (clip) transition, e.g. ATEM Mini models.</summary>
+    public bool SupportsAtemStinger => StingerCount is > 0;
+
     public static readonly AtemSnapshot Disconnected =
         new(false, "", null, null, false, new HashSet<int>(), new HashSet<int>(), null);
 }
