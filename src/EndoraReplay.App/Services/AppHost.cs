@@ -115,6 +115,7 @@ public sealed class AppHost : IAsyncDisposable
         StartMidi();
         Scoreboard = new ScoreboardOutput(Diagnostics, s.Buffer.DataFolder);
         op.ScoreboardToggle = ToggleScoreboard;
+        Automation.StateChanged += OnReplayStateForScoreboard;
         StartScoreboard();
         _ = Task.Run(StartCaptureAsync);
     }
@@ -189,12 +190,39 @@ public sealed class AppHost : IAsyncDisposable
             catch (Exception e) { Diagnostics.Error(LogCategory.Output, $"Scoreboard could not start: {e.Message}"); }
         });
 
+    private bool _scoreboardHiddenForReplay;
+
+    /// <summary>Hides the scoreboard when a replay starts (stinger in) and brings it back once the cycle is over.</summary>
+    private void OnReplayStateForScoreboard(ReplayState state)
+    {
+        var sb = Settings.Scoreboard;
+        if (state is ReplayState.WAITING_FOR_PROGRAM or ReplayState.PLAYING)
+        {
+            if (!sb.Enabled || !sb.HideDuringReplay || _scoreboardHiddenForReplay || !ScoreboardOnAir) return;
+            if (SetScoreboard(false) is null)
+            {
+                _scoreboardHiddenForReplay = true;
+                Diagnostics.Info(LogCategory.Atem, "Scoreboard hidden for the replay.");
+            }
+        }
+        else if (state is ReplayState.LIVE_READY or ReplayState.RECORDING or ReplayState.REPLAY_ARMED && _scoreboardHiddenForReplay)
+        {
+            _scoreboardHiddenForReplay = false;
+            if (sb.Enabled && SetScoreboard(true) is null) Diagnostics.Info(LogCategory.Atem, "Scoreboard back after the replay.");
+        }
+    }
+
     public bool ScoreboardOnAir => Settings.Scoreboard.Keyer == ScoreboardKeyer.UpstreamKey1
         ? Atem.Snapshot.IsUpstreamKeyOnAir(1)
         : Atem.Snapshot.IsDownstreamKeyOnAir(2);
 
     /// <summary>Puts the scoreboard on or off air with ATEM DSK 2 or upstream key 1. Returns an error for the operator, or null.</summary>
-    public string? ToggleScoreboard() => SetScoreboard(!ScoreboardOnAir);
+    public string? ToggleScoreboard()
+    {
+        // The operator's own choice wins over bringing it back after a replay.
+        _scoreboardHiddenForReplay = false;
+        return SetScoreboard(!ScoreboardOnAir);
+    }
 
     public string? SetScoreboard(bool onAir)
     {

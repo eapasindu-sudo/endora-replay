@@ -296,6 +296,9 @@ public sealed class ScoreboardSettings
 {
     public ScoreboardKeyer Keyer { get; set; } = ScoreboardKeyer.Dsk2;
 
+    /// <summary>Take the scoreboard off air while a replay runs and put it back when the replay is over.</summary>
+    public bool HideDuringReplay { get; set; } = true;
+
     /// <summary>Hard luma key: only black (the page's transparent background) is keyed out.</summary>
     public const double KeyClip = 3;
 

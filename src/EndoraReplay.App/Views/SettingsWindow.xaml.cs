@@ -467,6 +467,8 @@ public partial class SettingsWindow : Window
             Field(score, "ATEM key", Combo(new[] { ("DSK 2 (downstream key)", ScoreboardKeyer.Dsk2), ("Upstream key 1 (keeps both DSKs free)", ScoreboardKeyer.UpstreamKey1) },
                 sb.Keyer, v => { sb.Keyer = v; Changed(); }),
                 "DSK 2 sits on top of everything, stingers included. Upstream key 1 sits under the DSKs, so the stinger plays over the scoreboard; it stays on air through cuts. Take the scoreboard off air before changing this.");
+            Toggle(score, "Hide during replays", sb.HideDuringReplay, v => { sb.HideDuringReplay = v; Changed(); },
+                "Takes the scoreboard off air when a replay starts and puts it back when the replay is over, if it was on air before.");
             Field(score, "ATEM input", IntBox(sb.AtemInput, v => { sb.AtemInput = v; Changed(); }), "The ATEM HDMI input that the scoreboard output is plugged into.");
             Field(score, "Zoom (%)", IntBox(sb.ZoomPercent, v => { sb.ZoomPercent = v; Changed(); }), "Make the page bigger or smaller if it was designed for another size.");
             var sbStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
