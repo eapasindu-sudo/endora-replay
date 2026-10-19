@@ -35,6 +35,14 @@ validates.
 | 1–8 | Select camera | Shift+← / → | Shuttle 1 s |
 | Tab / Shift+Tab | Next / previous camera | F1 / F2 / F3 | Speed 100 / 50 / 25 % |
 
+## Replay tools
+
+These are new and have not been tested on the real hardware yet.
+
+- **Highlights package:** filter the clip library by a tag (or Ctrl/Shift-click clips), press HIGHLIGHTS, then
+  REPLAY. The clips play oldest first as one replay with the stinger IN between each pair; the clip changes under
+  the stinger's cover frame. Without a stinger they cut. The camera cannot change while a package plays.
+
 ## Typical cricket setup
 
 1. Cameras 1–4 on USB capture cards, Program from the ATEM's HDMI out on a fifth card (optional).

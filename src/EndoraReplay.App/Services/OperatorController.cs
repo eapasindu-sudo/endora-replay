@@ -69,6 +69,10 @@ public sealed class OperatorController : IRemoteHandler
     /// <summary>Puts the scoreboard (ATEM DSK 2 or upstream key 1) on or off air; set by the app host.</summary>
     public Func<string?>? ScoreboardToggle { get; set; }
 
+    /// <summary>Stinger played between the clips of a highlights package, and the compositor that blends it; set by the app host.</summary>
+    public Func<(IFrameSequence Frames, int CutFrame)?>? BetweenStinger { get; set; }
+    public IFrameCompositor? Compositor { get; set; }
+
     /// <summary>The UI should open the tag picker for this clip.</summary>
     public event Action<long>? TagPickerRequested;
 
@@ -138,6 +142,8 @@ public sealed class OperatorController : IRemoteHandler
                 _queue.Enqueue(q);
                 _diag.Info(LogCategory.Clip, $"Queued {q.Description} ({_queue.Count} in queue)");
                 return null;
+            case "ArmHighlights":
+                return ArmHighlights(text);
             case "ArmClip":
                 if (clipId is null) return "No clip.";
                 var r = RefFor(clipId.Value) ?? throw new KeyNotFoundException($"Clip #{clipId} not found.");
@@ -203,6 +209,8 @@ public sealed class OperatorController : IRemoteHandler
         SelectedCamera = cam;
 
         // During a replay, cut the replay itself to the new angle at the same moment.
+        if (_automation.PlayingClip is { IsPackage: true } && _automation.State is ReplayState.PLAYING)
+            return "The camera cannot change while a highlights package plays.";
         if (_automation.PlayingClip is { } playing && playing.SourceId != cam &&
             _automation.State is ReplayState.PLAYING or ReplayState.WAITING_FOR_PROGRAM)
         {
@@ -221,12 +229,13 @@ public sealed class OperatorController : IRemoteHandler
         // Angle change re-arms the same moment on the new camera. Never substitutes a missing angle.
         if (_automation.ArmedClip is { } armed && armed.SourceId != cam)
         {
-            if (armed.IsSaved)
+            if (armed.IsSaved && !armed.IsPackage)
             {
                 var c = _clips.Get(armed.ClipId);
                 if (c is null || !c.Files.ContainsKey(cam)) return $"Clip #{armed.ClipId} has no Cam {cam} angle.";
             }
-            _automation.Post(new ArmRequested(armed with { SourceId = cam, Description = Describe(armed.ClipId, cam, armed.InTicks, armed.OutTicks) }));
+            _automation.Post(new ArmRequested(armed.IsPackage ? armed with { SourceId = cam }
+                : armed with { SourceId = cam, Description = Describe(armed.ClipId, cam, armed.InTicks, armed.OutTicks) }));
         }
         return null;
     }
@@ -308,8 +317,40 @@ public sealed class OperatorController : IRemoteHandler
     }
 
     /// <summary>Opens the frames to play for a clip reference. Never substitutes another angle.</summary>
-    public IFrameSequence OpenClip(ClipRef r) =>
-        r.IsSaved ? _clips.OpenAngle(r.ClipId, r.SourceId) : _buffers.GetSequence(r.SourceId, r.InTicks, r.OutTicks);
+    public IFrameSequence OpenClip(ClipRef r)
+    {
+        if (r.IsPackage) return OpenPackage(r);
+        return r.IsSaved ? _clips.OpenAngle(r.ClipId, r.SourceId) : _buffers.GetSequence(r.SourceId, r.InTicks, r.OutTicks);
+    }
+
+    /// <summary>
+    /// Arms saved clips (comma-separated ids, played oldest first) as one highlights package with the stinger between
+    /// each. Each clip plays the selected camera when it has that angle, otherwise the angle it was marked on.
+    /// </summary>
+    private string? ArmHighlights(string? ids)
+    {
+        var list = (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(long.Parse).Distinct().Order().ToList();
+        if (list.Count < 2) return "Select at least two clips for a highlights package.";
+        var clips = list.Select(id => _clips.Get(id) ?? throw new KeyNotFoundException($"Clip #{id} not found.")).ToList();
+        var total = TimeSpan.FromTicks(clips.Sum(c => c.OutTicks - c.InTicks));
+        var r = new ClipRef(list[0], SelectedCamera, Speed, $"Highlights · {list.Count} clips · {total.TotalSeconds:0} s @ {Speed:P0}",
+            clips[0].InTicks, clips[^1].OutTicks, list);
+        _automation.Post(new ArmRequested(r));
+        _diag.Info(LogCategory.Clip, $"Armed highlights: {string.Join(", ", list.Select(i => "#" + i))}");
+        return null;
+    }
+
+    private HighlightSequence OpenPackage(ClipRef r)
+    {
+        var seqs = new List<IFrameSequence>();
+        foreach (var id in r.Package!)
+        {
+            var c = _clips.Get(id) ?? throw new FrameUnavailableException($"Clip #{id} of the highlights is gone.");
+            seqs.Add(_clips.OpenAngle(id, c.Files.ContainsKey(r.SourceId) ? r.SourceId : c.PrimarySourceId));
+        }
+        return new HighlightSequence(seqs, BetweenStinger?.Invoke(), Compositor, Format, r.Speed);
+    }
 
     private void OnStateChanged(ReplayState s)
     {

@@ -327,10 +327,12 @@
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="12,10">
                             <TextBlock x:Name="ClipHeader" Text="CLIP LIBRARY" Style="{StaticResource Label}" />
-                            <ComboBox x:Name="TagFilter" Width="120" MinHeight="26" HorizontalAlignment="Right" SelectionChanged="OnTagFilter" FontSize="11" />
+                            <ComboBox x:Name="TagFilter" DockPanel.Dock="Right" Width="120" MinHeight="26" SelectionChanged="OnTagFilter" FontSize="11" />
+                            <Button DockPanel.Dock="Right" Content="HIGHLIGHTS" Style="{StaticResource BtnBase}" Padding="8,3" Margin="0,0,6,0" FontSize="10" FontWeight="Bold"
+                                    Click="OnClipHighlights" ToolTip="Arm the selected clips (or every clip shown) as one highlights package, oldest first, with the stinger between each. Then press REPLAY." />
                         </DockPanel>
                         <Rectangle DockPanel.Dock="Top" Height="1" Fill="{StaticResource Line}" />
-                        <ListBox x:Name="ClipList" Style="{StaticResource PlainList}" MouseDoubleClick="OnClipDoubleClick" ToolTip="Double-click to arm">
+                        <ListBox x:Name="ClipList" Style="{StaticResource PlainList}" SelectionMode="Extended" MouseDoubleClick="OnClipDoubleClick" ToolTip="Double-click to arm. Ctrl+click or Shift+click to select several.">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Border Padding="12,8" BorderBrush="#1A2027" BorderThickness="0,0,0,1">
@@ -376,6 +378,7 @@
                                     <MenuItem Header="Tag" Tag="TagMenu" />
                                     <MenuItem Header="Tag picker…" Click="OnClipTag" />
                                     <MenuItem Header="Queue" Click="OnClipQueue" />
+                                    <MenuItem Header="Arm selected as highlights" Click="OnClipHighlights" />
                                     <Separator />
                                     <MenuItem Header="Delete" Click="OnClipDelete" />
                                 </ContextMenu>

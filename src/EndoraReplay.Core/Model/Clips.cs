@@ -26,10 +26,13 @@ public sealed class Clip
 /// <summary>
 /// Reference to material that automation can arm and play. Immutable. <see cref="ClipId"/> is 0 for
 /// material still in the rolling buffer (not yet saved); it then plays from [InTicks, OutTicks] of the buffer.
+/// <see cref="Package"/> lists saved clips to play back to back as a highlights package (ClipId is the first of them).
 /// </summary>
-public sealed record ClipRef(long ClipId, int SourceId, double Speed, string Description, long InTicks, long OutTicks)
+public sealed record ClipRef(long ClipId, int SourceId, double Speed, string Description, long InTicks, long OutTicks, IReadOnlyList<long>? Package = null)
 {
     public bool IsSaved => ClipId > 0;
+    public bool IsPackage => Package is { Count: > 0 };
+    public bool Uses(long clipId) => ClipId == clipId || Package?.Contains(clipId) == true;
 }
 
 public static class StandardTags

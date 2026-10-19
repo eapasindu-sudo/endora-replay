@@ -100,7 +100,9 @@ public sealed class AppHost : IAsyncDisposable
             r => op!.OpenClip(r), Diagnostics, Clock, StingerCompositor, s.Format);
         op = new OperatorController(s, Clock, Capture, Buffers, Clips, Playback, Automation, Diagnostics, () => Atem.Snapshot);
         Operator = op;
-        Clips.IsInUse = id => Automation.ArmedClip?.ClipId == id || Automation.PlayingClip?.ClipId == id || op.Queue.Any(q => q.ClipId == id);
+        op.BetweenStinger = () => Stingers.Get(isReturn: false);
+        op.Compositor = StingerCompositor;
+        Clips.IsInUse = id => Automation.ArmedClip?.Uses(id) == true || Automation.PlayingClip?.Uses(id) == true || op.Queue.Any(q => q.Uses(id));
         ApplyStorageRules();
         _ = Task.Run(HousekeepAsync);
         Capture.RecordingChanged += rec => Automation.Post(new RecordingStateEvent(rec));

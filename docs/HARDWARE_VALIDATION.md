@@ -92,6 +92,10 @@ With **Endora stinger video**:
 - [ ] Without the runtime, Settings says why and the HDMI output still works.
 - [ ] Disk below the free-space limit: saving is refused with a message; buffer recording continues.
 
+## 5d. Replay tools (untested)
+
+- [ ] Highlights: three tagged clips play back to back with the stinger between, no flash of the wrong clip at the change.
+
 ## 6. Phone remote
 
 - [ ] iPhone (Safari) and Android (Chrome) on the same Wi-Fi scan the QR and connect. Windows Firewall prompt allowed for private networks.

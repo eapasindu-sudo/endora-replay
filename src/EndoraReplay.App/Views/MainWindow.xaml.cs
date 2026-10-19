@@ -130,9 +130,9 @@ public partial class MainWindow : Window
         if (sender is ToggleButton { Tag: string action }) Run(action);
     }
 
-    private void Run(string action, double? value = null)
+    private void Run(string action, double? value = null, string? text = null)
     {
-        var err = _host.Operator.Execute(action, value, origin: "operator");
+        var err = _host.Operator.Execute(action, value, text, origin: "operator");
         if (err is not null)
         {
             _transientError = err;
@@ -350,7 +350,7 @@ public partial class MainWindow : Window
     private void RefreshClips()
     {
         var tag = TagFilter.SelectedIndex > 0 ? TagFilter.SelectedItem as string : null;
-        var armed = _host.Automation.ArmedClip?.ClipId;
+        var armed = _host.Automation.ArmedClip;
         var list = _host.Clips.List(tag);
         ClipHeader.Text = $"CLIP LIBRARY · {list.Count} CLIPS";
         _clips.Clear();
@@ -360,7 +360,7 @@ public partial class MainWindow : Window
             if (!_thumbs.ContainsKey(c.Id)) LoadThumb(c);
             _clips.Add(new ClipRow
             {
-                Id = c.Id, Tags = c.Tags, Armed = c.Id == armed, Thumb = thumb,
+                Id = c.Id, Tags = c.Tags, Armed = armed?.Uses(c.Id) == true, Thumb = thumb,
                 Detail = $"Cam {c.PrimarySourceId} · {c.Duration.TotalSeconds:0.0} s · {c.Files.Count} angle(s) · {c.CreatedUtc.ToLocalTime():HH:mm:ss}",
             });
         }
@@ -403,6 +403,13 @@ public partial class MainWindow : Window
             item.Click += (_, _) => _host.Operator.Execute("SetTag", text: tag, clipId: clip.Id);
             tagMenu.Items.Add(item);
         }
+    }
+
+    /// <summary>Arms the selected clips, or every clip shown when fewer than two are selected, as a highlights package.</summary>
+    private void OnClipHighlights(object sender, RoutedEventArgs e)
+    {
+        var rows = ClipList.SelectedItems.Count >= 2 ? ClipList.SelectedItems.OfType<ClipRow>() : _clips;
+        Run("ArmHighlights", text: string.Join(",", rows.Select(r => r.Id)));
     }
 
     private void OnClipQueue(object sender, RoutedEventArgs e)
@@ -623,8 +630,7 @@ public partial class MainWindow : Window
         AlertText.Text = alert ?? "";
         ClearErrorBtn.Visibility = state == ReplayState.ERROR ? Visibility.Visible : Visibility.Collapsed;
 
-        var armedId = auto.ArmedClip?.ClipId;
-        if (_clips.Any(c => c.Armed != (c.Id == armedId))) RefreshClips();
+        if (_clips.Any(c => c.Armed != (auto.ArmedClip?.Uses(c.Id) == true))) RefreshClips();
     }
 
     private static string Describe(TransitionMode m) => m switch
