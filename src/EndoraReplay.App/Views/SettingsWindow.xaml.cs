@@ -343,17 +343,8 @@ public partial class SettingsWindow : Window
             Field(tr, "Stinger video (out)", FilePicker(m.StingerOutFile, "Video|*.mp4;*.mov;*.avi|All files|*.*", v => { m.StingerOutFile = v; Changed(); }),
                 "Leave empty to use the same stinger both ways.");
             tr.Children.Add(Note("Endora finds the point where the stinger covers the whole picture by itself and cuts the ATEM there, so the whole stinger plays in and out.", "Dim"));
-            Toggle(tr, "Show the stinger over live (DSK key)", m.StingerKey, v => { m.StingerKey = v; Changed(); Rebuild(); },
-                "Endora puts its replay input on an ATEM downstream key (luma) so the stinger appears over the live camera, then cuts underneath. The stinger video must be on a black background.");
-            if (m.StingerKey)
-            {
-                Field(tr, "Downstream keyer", Combo(new[] { ("DSK 1", 1), ("DSK 2", 2) }, m.StingerKeyer, v => { m.StingerKeyer = v; Changed(); }),
-                    "Endora takes over this keyer while a stinger plays. Don't use it for graphics at the same time.");
-                Field(tr, "Key clip (%)", IntBox((int)Math.Round(m.StingerKeyClip), v => { m.StingerKeyClip = v; Changed(); }), "Darker than this is transparent. Raise it if the black background shows.");
-                Field(tr, "Key gain (%)", IntBox((int)Math.Round(m.StingerKeyGain), v => { m.StingerKeyGain = v; Changed(); }), "Higher gives harder edges.");
-            }
-            Field(tr, "Fade (ms)", IntBox(m.StingerFadeMs, v => { m.StingerFadeMs = v; Changed(); }),
-                "Fades between the stinger and the replay at the stinger's start and end, so the end never goes black. 0 turns it off.");
+            Toggle(tr, "Show the stinger over live (DSK 1)", m.StingerKey, v => { m.StingerKey = v; Changed(); Rebuild(); },
+                "Endora puts its replay input on ATEM DSK 1 so the whole stinger plays over the live camera in and out, then cuts underneath. The stinger video must be on a black background; only the black is keyed out. DSK 2 stays free for the scoreboard.");
             foreach (var (isReturn, label, file, cov) in new[]
                      {
                          (false, "In", _host.Stingers.LoadedInFile, _host.Stingers.InCoverage),

@@ -109,8 +109,8 @@ public sealed record AutomationOptions(
         s.Automation.ReturnToLive, s.Automation.TransitionIn, s.Automation.TransitionInStyle,
         s.Automation.TransitionOut, s.Automation.TransitionOutStyle, s.Automation.PrerollMs,
         s.Automation.LockoutMs, s.Automation.WaitForProgramTimeoutMs,
-        s.Automation.StingerKey, s.Automation.StingerKeyer, s.Automation.StingerKeyClip, s.Automation.StingerKeyGain,
-        s.Automation.StingerFadeMs, s.Automation.StingerSwitchDelayFrames);
+        s.Automation.StingerKey, AutomationSettings.StingerKeyer, AutomationSettings.StingerKeyClip, AutomationSettings.StingerKeyGain,
+        0, s.Automation.StingerSwitchDelayFrames);
 }
 
 /// <summary>

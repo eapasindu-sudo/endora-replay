@@ -136,7 +136,7 @@ public sealed class AppHost : IAsyncDisposable
         var a = Settings.Automation;
         try
         {
-            StingerCompositor.Configure(a.StingerKeyClip, a.StingerKeyGain);
+            StingerCompositor.Configure(AutomationSettings.StingerKeyClip, AutomationSettings.StingerKeyGain);
             Stingers.Load(a.StingerInFile, a.StingerOutFile, Settings.Format, StingerCompositor);
             foreach (var (name, cov) in new[] { ("IN", Stingers.InCoverage), ("OUT", Stingers.OutCoverage) })
                 if (cov is > 0 and < 0.97)

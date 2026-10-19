@@ -128,7 +128,6 @@ public class AutomationIntegrationTests
         settings.Automation.TransitionIn = TransitionMode.EndoraStinger;
         settings.Automation.TransitionOut = TransitionMode.EndoraStinger;
         settings.Automation.StingerKey = true;
-        settings.Automation.StingerFadeMs = 0;
         settings.Automation.StingerSwitchDelayFrames = 2;
         await using var auto = new ReplayAutomationService(AutomationOptions.From(settings), playback, atem, stingers, _ => clip, diag, clock,
             new MarkingCompositor(), fmt);
