@@ -162,6 +162,7 @@
                         <Border Grid.Row="2" Background="Black" BorderBrush="#4B3F7A" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
                             <Grid>
                                 <Image x:Name="OutImage" Stretch="Uniform" />
+                                <Viewbox x:Name="OutBadgeHost" Stretch="Uniform" Visibility="Collapsed" IsHitTestVisible="False" />
                                 <Border Background="{StaticResource Violet}" CornerRadius="5" Padding="9,4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                                     <TextBlock x:Name="OutTag" Text="REPLAY OUT → ATEM IN 8" Foreground="White" FontWeight="Black" FontSize="11" />
                                 </Border>

@@ -74,6 +74,11 @@ public interface IReplayOutput : IAsyncDisposable
 
     /// <summary>Show the configured holding frame so the output never goes invalid when idle.</summary>
     void ShowHolding();
+
+    /// <summary>Shows or hides the animated REPLAY badge over the picture (bottom right) while a replay clip plays.</summary>
+    void SetReplayBadge(bool visible) { }
+
+    bool ReplayBadgeVisible => false;
 }
 
 /// <summary>Switcher control. Implementations: official SDK, network protocol, simulated.</summary>

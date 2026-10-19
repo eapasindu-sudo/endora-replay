@@ -425,6 +425,11 @@ public partial class SettingsWindow : Window
             live.Foreground = _host.Output.Readiness == OutputReadiness.Ready ? B("Green") : B("Amber");
         };
 
+        var badge = Card(root, "REPLAY badge");
+        Toggle(badge, "Show the REPLAY badge while a replay plays", o.ReplayBadge, v => { o.ReplayBadge = v; Changed(); },
+            "An animated badge in the bottom-right corner of the replay output, inside the title-safe area. Hidden during stingers and the holding frame.");
+        Field(badge, "Badge text", TextBox(o.ReplayBadgeText, v => { o.ReplayBadgeText = v; Changed(); }), "Shown in capitals. Badge changes apply after restarting Endora.");
+
         var hold = Card(root, "Holding frame (when no replay is playing)");
         Field(hold, "Show", Combo(new[] { ("Endora slate", HoldingFrameMode.Slate), ("Last replay frame", HoldingFrameMode.LastFrame), ("Black", HoldingFrameMode.Black) },
             o.Holding, v => { o.Holding = v; Changed(); }), null);

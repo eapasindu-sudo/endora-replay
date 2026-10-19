@@ -223,6 +223,11 @@ public sealed class OutputSettings
     public string? DisplayDevice { get; set; }
 
     public HoldingFrameMode Holding { get; set; } = HoldingFrameMode.Slate;
+
+    /// <summary>Animated badge in the bottom-right corner of the replay output while a replay plays.</summary>
+    public bool ReplayBadge { get; set; } = true;
+
+    public string ReplayBadgeText { get; set; } = "REPLAY";
     public string? HoldingImageFile { get; set; }
 }
 

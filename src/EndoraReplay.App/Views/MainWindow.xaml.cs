@@ -500,6 +500,12 @@ public partial class MainWindow : Window
         var output = _host.Output;
         OutReady.Text = output.IsSimulated ? "SIMULATED" : output.Readiness == OutputReadiness.Ready ? "OUTPUT READY" : output.Readiness.ToString().ToUpperInvariant();
         OutReady.Foreground = output.IsSimulated ? B("Violet") : output.Readiness == OutputReadiness.Ready ? B("Green") : B("Red");
+        OutBadgeHost.Visibility = output.ReplayBadgeVisible ? Visibility.Visible : Visibility.Collapsed;
+        if (OutBadgeHost.Visibility == Visibility.Visible && OutBadgeHost.Child is null)
+        {
+            var fmt = _host.Settings.Format;
+            OutBadgeHost.Child = new Grid { Width = fmt.Width, Height = fmt.Height, Children = { ReplayBadgeVisual.Create(_host.Settings.Output.ReplayBadgeText, fmt.Height) } };
+        }
         OutInfo.Text = (output.LastFrame is null ? "Holding frame" : $"Playing · Cam {output.LastFrame.SourceId}") + " · " + output.ReadinessMessage;
 
         // Timeline

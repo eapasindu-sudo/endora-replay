@@ -145,6 +145,7 @@ public sealed class AppHost : IAsyncDisposable
             || old.Output.Kind != updated.Output.Kind
             || old.Output.DisplayDevice != updated.Output.DisplayDevice
             || old.Output.Holding != updated.Output.Holding
+            || old.Output.ReplayBadgeText != updated.Output.ReplayBadgeText || old.Output.ReplayBadge != updated.Output.ReplayBadge
             || old.Output.HoldingImageFile != updated.Output.HoldingImageFile;
 
         updated.Save(SettingsPath);

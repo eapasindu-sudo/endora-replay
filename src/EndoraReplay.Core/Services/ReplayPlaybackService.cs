@@ -153,6 +153,7 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
         {
             if (_job is { IsFinished: false }) return;
         }
+        _output.SetReplayBadge(false);
         _output.ShowHolding();
         SetStatus(PlaybackStatus.Idle);
         CurrentKind = null;
@@ -268,7 +269,7 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
             {
                 IsFinished = true;
                 _svc._diag.Error(LogCategory.Playback, $"Playback failed: {e.Message}");
-                try { _svc._output.ShowHolding(); } catch (Exception) { }
+                try { _svc._output.SetReplayBadge(false); _svc._output.ShowHolding(); } catch (Exception) { }
                 _svc.SetStatus(PlaybackStatus.Idle);
                 _svc.Failed?.Invoke(e.Message);
             }
@@ -283,6 +284,7 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
             var seq = seg.Kind == PlayoutSegmentKind.Clip && Interlocked.Exchange(ref _angleSwap, null) is { } early ? early : seg.Frames;
             if (seq.Count == 0) throw new FrameUnavailableException($"{seg.Kind} has no frames.");
             _svc.CurrentKind = seg.Kind;
+            _svc._output.SetReplayBadge(seg.Kind == PlayoutSegmentKind.Clip);
             _svc.SetStatus(PlaybackStatus.Playing);
             _svc.SegmentStarted?.Invoke(seg.Kind);
             _svc._diag.Info(LogCategory.Playback, $"{seg.Kind} start {seg.Label} ({seq.Count} frames)");
@@ -333,7 +335,11 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
                 tick++;
                 WaitUntil(sw, tick * period, ct);
             }
-            if (seg.Kind == PlayoutSegmentKind.Clip) _clipDone = true;
+            if (seg.Kind == PlayoutSegmentKind.Clip)
+            {
+                _clipDone = true;
+                _svc._output.SetReplayBadge(false);
+            }
             if (!cutFired && !ct.IsCancellationRequested) _svc.CutPointReached?.Invoke(seg.Kind);
             if (!ct.IsCancellationRequested)
             {

@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
+using System.Windows.Shapes;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -27,6 +29,8 @@ public sealed class DisplayReplayOutput : IReplayOutput
     private Dispatcher? _dispatcher;
     private Window? _window;
     private WriteableBitmap? _bitmap;
+    private FrameworkElement? _badge;
+    private volatile bool _badgeVisible;
     private VideoFormat _format = VideoFormat.Hd1080p50;
     private int _pending;
     private OutputReadiness _readiness = OutputReadiness.NotConfigured;
@@ -81,6 +85,11 @@ public sealed class DisplayReplayOutput : IReplayOutput
         _bitmap = new WriteableBitmap(_format.Width, _format.Height, 96, 96, PixelFormats.Bgra32, null);
         var image = new Image { Source = _bitmap, Stretch = Stretch.Fill };
         RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor);
+        var root = new Grid();
+        root.Children.Add(image);
+        _badge = ReplayBadgeVisual.Create(_settings.ReplayBadgeText, _format.Height);
+        _badge.Visibility = Visibility.Collapsed;
+        root.Children.Add(_badge);
         _window = new Window
         {
             Title = "Endora Replay Output",
@@ -90,7 +99,7 @@ public sealed class DisplayReplayOutput : IReplayOutput
             ShowActivated = false,
             Topmost = true,
             Background = Brushes.Black,
-            Content = image,
+            Content = root,
             Left = -32000,
             Top = -32000,
             Width = 64,
@@ -171,6 +180,16 @@ public sealed class DisplayReplayOutput : IReplayOutput
         Draw(img);
     }
 
+    public bool ReplayBadgeVisible => _badgeVisible;
+
+    public void SetReplayBadge(bool visible)
+    {
+        visible &= _settings.ReplayBadge;
+        if (_badgeVisible == visible) return;
+        _badgeVisible = visible;
+        _dispatcher?.BeginInvoke(() => { if (_badge is not null) _badge.Visibility = visible ? Visibility.Visible : Visibility.Collapsed; });
+    }
+
     public void ShowHolding()
     {
         LastFrame = null;
@@ -231,5 +250,73 @@ public sealed class SimulatedReplayOutput : IReplayOutput
     public ModeValidationResult ValidateMode(VideoFormat format) => ModeValidationResult.Ok("SIMULATED");
     public void Present(EncodedFrame frame) => LastFrame = frame;
     public void ShowHolding() => LastFrame = null;
+    public bool ReplayBadgeVisible { get; private set; }
+    public void SetReplayBadge(bool visible) => ReplayBadgeVisible = visible;
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+/// <summary>The animated REPLAY badge: a spinning ring and a word that turns over every few seconds, in the title-safe corner.</summary>
+public static class ReplayBadgeVisual
+{
+    public static FrameworkElement Create(string text, int outputHeight)
+    {
+        var scale = outputHeight / 1080.0;
+        var ringSize = 46 * scale;
+        var ring = new Grid { Width = ringSize, Height = ringSize, Margin = new Thickness(0, 0, 14 * scale, 0), VerticalAlignment = VerticalAlignment.Center };
+        var arc = new Ellipse
+        {
+            Stroke = new LinearGradientBrush(Color.FromRgb(0xFF, 0x3B, 0x3B), Color.FromRgb(0xFF, 0xB0, 0x20), 0),
+            StrokeThickness = 6 * scale,
+            StrokeDashArray = [5, 2.2],
+            StrokeDashCap = PenLineCap.Round,
+        };
+        var spin = new RotateTransform();
+        arc.RenderTransform = spin;
+        arc.RenderTransformOrigin = new Point(0.5, 0.5);
+        ring.Children.Add(arc);
+        ring.Children.Add(new Path
+        {
+            Data = Geometry.Parse("M0,0 L0,12 L10,6 Z"), Fill = Brushes.White, Stretch = Stretch.Uniform,
+            Width = ringSize * 0.34, Height = ringSize * 0.34, Margin = new Thickness(ringSize * 0.06, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        var word = new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(text) ? "REPLAY" : text.ToUpperInvariant(),
+            Foreground = Brushes.White, FontSize = 40 * scale, FontWeight = FontWeights.Black,
+            FontFamily = new FontFamily("Segoe UI"), VerticalAlignment = VerticalAlignment.Center,
+        };
+        var turn = new ScaleTransform(1, 1);
+        word.RenderTransform = turn;
+        word.RenderTransformOrigin = new Point(0.5, 0.5);
+
+        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        panel.Children.Add(ring);
+        panel.Children.Add(word);
+        var badge = new Border
+        {
+            Child = panel,
+            Padding = new Thickness(18 * scale, 10 * scale, 26 * scale, 10 * scale),
+            CornerRadius = new CornerRadius(40 * scale),
+            Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x10, 0x12, 0x16)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0x3B, 0x3B)),
+            BorderThickness = new Thickness(2 * scale),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            // Inside the 5% title-safe area.
+            Margin = new Thickness(0, 0, 96 * scale, 54 * scale),
+        };
+
+        spin.BeginAnimation(RotateTransform.AngleProperty,
+            new DoubleAnimation(0, 360, TimeSpan.FromSeconds(1.6)) { RepeatBehavior = RepeatBehavior.Forever });
+        var flip = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever, Duration = TimeSpan.FromSeconds(3.5) };
+        var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
+        flip.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        flip.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(2.9))));
+        flip.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(3.2)), ease));
+        flip.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(3.5)), ease));
+        turn.BeginAnimation(ScaleTransform.ScaleXProperty, flip);
+        return badge;
+    }
 }
