@@ -194,8 +194,9 @@ public sealed class ReplayAutomationService : IAsyncDisposable
                     break;
 
                 case DskOnAirAction d:
+                    // A blocking sleep, not Task.Delay: a busy thread pool must not hold the key back into the stinger.
                     if (d.OnAir && Stopwatch.GetTimestamp() < _keyNotBefore)
-                        await Task.Delay(TimeSpan.FromSeconds((_keyNotBefore - Stopwatch.GetTimestamp()) / (double)Stopwatch.Frequency)).ConfigureAwait(false);
+                        Thread.Sleep(TimeSpan.FromSeconds((_keyNotBefore - Stopwatch.GetTimestamp()) / (double)Stopwatch.Frequency));
                     await _atem.SetDownstreamKeyOnAirAsync(d.Keyer, d.OnAir).ConfigureAwait(false);
                     break;
 
@@ -272,7 +273,7 @@ public sealed class ReplayAutomationService : IAsyncDisposable
     private long _keyNotBefore;
 
     /// <summary>Black frames before a keyed stinger IN, so the ATEM key is on air before the stinger appears.</summary>
-    public const int KeyLeadFrames = 4;
+    public const int KeyLeadFrames = 8;
 
     private int FadeFrames(AutomationOptions o) => (int)Math.Round(o.StingerFadeMs / 1000.0 * _format.FramesPerSecond);
 
