@@ -95,6 +95,7 @@ With **Endora stinger video**:
 ## 5d. Replay tools (untested)
 
 - [ ] Highlights: three tagged clips play back to back with the stinger between, no flash of the wrong clip at the change.
+- [ ] Export MP4: a clip and a 3-clip package export, play in VLC and the Windows player; note which codec was used.
 
 ## 6. Phone remote
 

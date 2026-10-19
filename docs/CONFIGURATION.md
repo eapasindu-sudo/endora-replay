@@ -42,6 +42,9 @@ These are new and have not been tested on the real hardware yet.
 - **Highlights package:** filter the clip library by a tag (or Ctrl/Shift-click clips), press HIGHLIGHTS, then
   REPLAY. The clips play oldest first as one replay with the stinger IN between each pair; the clip changes under
   the stinger's cover frame. Without a stinger they cut. The camera cannot change while a package plays.
+- **Export MP4:** right-click a clip → Export MP4…. It is saved on the selected camera (or the angle it was marked
+  on) at the current speed, without audio. Several selected clips export as one highlights video with the stinger.
+  H.264 is used when this PC's video library can encode it, otherwise MPEG-4; the status line says which.
 
 ## Typical cricket setup
 

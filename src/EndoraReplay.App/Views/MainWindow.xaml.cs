@@ -412,6 +412,52 @@ public partial class MainWindow : Window
         Run("ArmHighlights", text: string.Join(",", rows.Select(r => r.Id)));
     }
 
+    /// <summary>
+    /// Saves the selected clip as an MP4 on the selected camera at the current speed; several selected clips export as
+    /// one highlights video with the stinger between. Runs in the background; progress shows in the status line.
+    /// </summary>
+    private void OnClipExport(object sender, RoutedEventArgs e)
+    {
+        var ids = ClipList.SelectedItems.OfType<ClipRow>().Select(r => r.Id).ToList();
+        if (ids.Count == 0) return;
+        ClipRef r;
+        try { r = _host.Operator.ExportRef(ids); }
+        catch (Exception ex) { ShowStatus(ex.Message); return; }
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "MP4 video (*.mp4)|*.mp4",
+            FileName = ids.Count > 1 ? $"Endora highlights {DateTime.Now:yyyy-MM-dd HHmm}.mp4" : $"Endora clip {ids[0]} cam {r.SourceId}.mp4",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        var path = dlg.FileName;
+        var name = System.IO.Path.GetFileName(path);
+        var progress = new Progress<double>(p => ShowStatus($"Exporting {name}: {p:P0}"));
+        var format = _host.Settings.Format;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var seq = _host.Operator.OpenClip(r);
+                var codec = Mp4Exporter.Export(seq, path, format, r.Speed, progress, CancellationToken.None);
+                (seq as IDisposable)?.Dispose();
+                _host.Diagnostics.Info(LogCategory.Clip, $"Exported {r.Description} to {path} ({codec})");
+                Dispatcher.BeginInvoke(() => ShowStatus($"Exported {name} ({codec})."));
+            }
+            catch (Exception ex)
+            {
+                _host.Diagnostics.Error(LogCategory.Clip, $"Export failed: {ex.Message}");
+                Dispatcher.BeginInvoke(() => ShowStatus($"Export failed: {ex.Message}"));
+            }
+        });
+    }
+
+    private void ShowStatus(string message)
+    {
+        _transientError = message;
+        _transientUntil = DateTime.UtcNow.AddSeconds(6);
+        RefreshUi();
+    }
+
     private void OnClipQueue(object sender, RoutedEventArgs e)
     {
         if (SelectedClipId is not { } id) return;

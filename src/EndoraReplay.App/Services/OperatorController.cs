@@ -329,17 +329,30 @@ public sealed class OperatorController : IRemoteHandler
     /// </summary>
     private string? ArmHighlights(string? ids)
     {
-        var list = (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(long.Parse).Distinct().Order().ToList();
-        if (list.Count < 2) return "Select at least two clips for a highlights package.";
-        var clips = list.Select(id => _clips.Get(id) ?? throw new KeyNotFoundException($"Clip #{id} not found.")).ToList();
-        var total = TimeSpan.FromTicks(clips.Sum(c => c.OutTicks - c.InTicks));
-        var r = new ClipRef(list[0], SelectedCamera, Speed, $"Highlights · {list.Count} clips · {total.TotalSeconds:0} s @ {Speed:P0}",
-            clips[0].InTicks, clips[^1].OutTicks, list);
+        var list = (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(long.Parse).ToList();
+        if (list.Distinct().Count() < 2) return "Select at least two clips for a highlights package.";
+        var r = PackageRef(list);
         _automation.Post(new ArmRequested(r));
-        _diag.Info(LogCategory.Clip, $"Armed highlights: {string.Join(", ", list.Select(i => "#" + i))}");
+        _diag.Info(LogCategory.Clip, $"Armed highlights: {string.Join(", ", r.Package!.Select(i => "#" + i))}");
         return null;
     }
+
+    /// <summary>Reference for several saved clips played oldest first as one package.</summary>
+    private ClipRef PackageRef(IEnumerable<long> ids)
+    {
+        var list = ids.Distinct().Order().ToList();
+        var clips = list.Select(id => _clips.Get(id) ?? throw new KeyNotFoundException($"Clip #{id} not found.")).ToList();
+        var total = TimeSpan.FromTicks(clips.Sum(c => c.OutTicks - c.InTicks));
+        return new ClipRef(list[0], SelectedCamera, Speed, $"Highlights · {list.Count} clips · {total.TotalSeconds:0} s @ {Speed:P0}",
+            clips[0].InTicks, clips[^1].OutTicks, list);
+    }
+
+    /// <summary>
+    /// What an export of these clips plays: one clip on the selected camera (or the angle it was marked on), or
+    /// several as a highlights package with the stinger between, at the current speed.
+    /// </summary>
+    public ClipRef ExportRef(IReadOnlyList<long> ids) =>
+        ids.Distinct().Count() > 1 ? PackageRef(ids) : RefFor(ids[0]) ?? throw new KeyNotFoundException($"Clip #{ids[0]} not found.");
 
     private HighlightSequence OpenPackage(ClipRef r)
     {
