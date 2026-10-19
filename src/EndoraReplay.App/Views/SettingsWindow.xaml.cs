@@ -440,7 +440,11 @@ public partial class SettingsWindow : Window
         Field(st, "Data folder", FolderPicker(_edit.Buffer.DataFolder, v => { _edit.Buffer.DataFolder = v; Changed(); }),
             "Buffers, clips, database and logs. Use a fast SSD. Needs a restart.");
         Field(st, "Keep free (GB)", IntBox(_edit.Buffer.MinFreeDiskGb, v => { _edit.Buffer.MinFreeDiskGb = v; Changed(); }),
-            "New clips are refused below this, so the buffer never fills the disk.");
+            "Endora always keeps this much space free on the replay drive.");
+        Toggle(st, "Delete the oldest clips when the drive is low", _edit.Buffer.AutoDeleteOldClips, v => { _edit.Buffer.AutoDeleteOldClips = v; Changed(); },
+            "Makes room by deleting the oldest saved clips. A clip that is armed, playing or in the queue is never deleted. Off: new clips are refused instead.");
+        Toggle(st, "Keep tagged clips", _edit.Buffer.KeepTaggedClips, v => { _edit.Buffer.KeepTaggedClips = v; Changed(); },
+            "Clips with a tag (WICKET, SIX…) are never deleted automatically.");
         var free = _host.Storage.FreeBytes;
         st.Children.Add(Note($"Free now: {free / 1e9:0.0} GB.", free < _host.Storage.MinFreeBytes ? "Red" : "Dim"));
         return root;

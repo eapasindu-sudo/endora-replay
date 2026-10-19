@@ -51,7 +51,8 @@ public sealed class StorageService : IDisposable
     public string ClipsFolder { get; }
     public string BufferFolder { get; }
     public string LogFolder { get; }
-    public long MinFreeBytes { get; }
+    /// <summary>Free space always kept on the replay drive.</summary>
+    public long MinFreeBytes { get; set; }
 
     /// <summary>Identifies the capture session; clip in/out ticks are only meaningful within one session.</summary>
     public string SessionId { get; } = DateTime.UtcNow.ToString("yyyyMMddHHmmss");

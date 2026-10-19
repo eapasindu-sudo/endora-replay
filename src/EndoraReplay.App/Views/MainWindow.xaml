@@ -350,9 +350,10 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                             <ListBox.ContextMenu>
-                                <ContextMenu>
+                                <ContextMenu Opened="OnClipMenuOpened">
                                     <MenuItem Header="Arm" Click="OnClipArm" />
-                                    <MenuItem Header="Tag…" Click="OnClipTag" />
+                                    <MenuItem Header="Tag" Tag="TagMenu" />
+                                    <MenuItem Header="Tag picker…" Click="OnClipTag" />
                                     <MenuItem Header="Queue" Click="OnClipQueue" />
                                     <Separator />
                                     <MenuItem Header="Delete" Click="OnClipDelete" />

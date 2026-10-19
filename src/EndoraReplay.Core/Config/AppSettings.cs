@@ -125,8 +125,14 @@ public sealed class BufferSettings
     /// <summary>Estimated bytes per 1080p frame used to size buffer files.</summary>
     public int EstimatedFrameBytes { get; set; } = 400_000;
 
-    /// <summary>New clips are refused when free space falls below this.</summary>
+    /// <summary>Free space always kept on the replay drive.</summary>
     public int MinFreeDiskGb { get; set; } = 20;
+
+    /// <summary>When free space falls below <see cref="MinFreeDiskGb"/>, delete the oldest clips (never one that is armed, playing or queued).</summary>
+    public bool AutoDeleteOldClips { get; set; } = true;
+
+    /// <summary>Skip clips with tags when deleting automatically.</summary>
+    public bool KeepTaggedClips { get; set; }
 }
 
 public sealed class AtemSettings

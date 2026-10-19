@@ -82,6 +82,9 @@ public sealed class AppHost : IAsyncDisposable
             r => op!.OpenClip(r), Diagnostics, Clock, StingerCompositor, s.Format);
         op = new OperatorController(s, Clock, Capture, Buffers, Clips, Playback, Automation, Diagnostics, () => Atem.Snapshot);
         Operator = op;
+        Clips.IsInUse = id => Automation.ArmedClip?.ClipId == id || Automation.PlayingClip?.ClipId == id || op.Queue.Any(q => q.ClipId == id);
+        ApplyStorageRules();
+        _ = Task.Run(HousekeepAsync);
         Capture.RecordingChanged += rec => Automation.Post(new RecordingStateEvent(rec));
         Remote = new RemoteServer(op, Diagnostics);
         Updates = new UpdateService(s.Updates, Diagnostics);
@@ -89,6 +92,30 @@ public sealed class AppHost : IAsyncDisposable
         await StartAtemAsync().ConfigureAwait(false);
         await StartRemoteAsync().ConfigureAwait(false);
         _ = Task.Run(StartCaptureAsync);
+    }
+
+    private readonly CancellationTokenSource _housekeeping = new();
+
+    private void ApplyStorageRules()
+    {
+        Storage.MinFreeBytes = (long)Settings.Buffer.MinFreeDiskGb << 30;
+        Clips.AutoDeleteOldClips = Settings.Buffer.AutoDeleteOldClips;
+        Clips.KeepTaggedClips = Settings.Buffer.KeepTaggedClips;
+    }
+
+    /// <summary>Keeps the reserve free on the replay drive by deleting the oldest clips, when enabled.</summary>
+    private async Task HousekeepAsync()
+    {
+        using var t = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await t.WaitForNextTickAsync(_housekeeping.Token).ConfigureAwait(false))
+            {
+                try { if (Clips.AutoDeleteOldClips) Clips.DeleteOldestUntilFree(0); }
+                catch (Exception e) { Diagnostics.Warn(LogCategory.Storage, $"Clip housekeeping: {e.Message}"); }
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 
     private void LoadStingers()
@@ -157,6 +184,7 @@ public sealed class AppHost : IAsyncDisposable
         // Copy into the live instance so every service holding it sees the change.
         CopyInto(updated, old);
         Automation.UpdateOptions(AutomationOptions.From(old));
+        ApplyStorageRules();
         LoadStingers();
         if (restartAtem) await StartAtemAsync().ConfigureAwait(false);
         if (restartRemote) await StartRemoteAsync().ConfigureAwait(false);
@@ -187,6 +215,7 @@ public sealed class AppHost : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         Diagnostics.Info(LogCategory.App, "Shutting down");
+        await _housekeeping.CancelAsync().ConfigureAwait(false);
         await Remote.DisposeAsync().ConfigureAwait(false);
         await Automation.DisposeAsync().ConfigureAwait(false);
         await Atem.DisposeAsync().ConfigureAwait(false);

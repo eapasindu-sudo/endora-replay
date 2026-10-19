@@ -27,6 +27,39 @@ public sealed class ClipService
     /// <summary>Raised after a clip is saved, updated or deleted (any thread).</summary>
     public event Action? ClipsChanged;
 
+    /// <summary>When the replay drive runs low, delete the oldest clips to make room instead of refusing new ones.</summary>
+    public bool AutoDeleteOldClips { get; set; } = true;
+
+    /// <summary>Never auto-delete clips that have a tag.</summary>
+    public bool KeepTaggedClips { get; set; }
+
+    /// <summary>Clips that must not be deleted right now (armed, playing, queued).</summary>
+    public Func<long, bool>? IsInUse { get; set; }
+
+    /// <summary>
+    /// Deletes the oldest clips, skipping those in use (and tagged ones when <see cref="KeepTaggedClips"/>), until
+    /// <paramref name="neededBytes"/> fit above the reserve. Returns how many clips were deleted.
+    /// </summary>
+    public int DeleteOldestUntilFree(long neededBytes)
+    {
+        if (_storage.HasRoomFor(neededBytes, out _)) return 0;
+        var deleted = new List<long>();
+        foreach (var c in _storage.ListClips(int.MaxValue).OrderBy(c => c.Id))
+        {
+            if (IsInUse?.Invoke(c.Id) == true) continue;
+            if (KeepTaggedClips && c.Tags.Count > 0) continue;
+            _storage.DeleteClip(c.Id);
+            deleted.Add(c.Id);
+            if (_storage.HasRoomFor(neededBytes, out _)) break;
+        }
+        if (deleted.Count > 0)
+        {
+            _diag.Warn(LogCategory.Storage, $"Replay drive low: deleted {deleted.Count} oldest clip(s) (#{string.Join(", #", deleted)}).");
+            ClipsChanged?.Invoke();
+        }
+        return deleted.Count;
+    }
+
     public void MarkIn(long ticks)
     {
         lock (_gate)
@@ -77,6 +110,7 @@ public sealed class ClipService
 
         var seconds = TimeSpan.FromTicks(outTicks - inTicks).TotalSeconds;
         var estimate = (long)(seconds * 50 * 400_000 * ids.Count);
+        if (AutoDeleteOldClips) DeleteOldestUntilFree(estimate);
         if (!_storage.HasRoomFor(estimate, out var reason))
         {
             _diag.Error(LogCategory.Storage, reason);

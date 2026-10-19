@@ -183,4 +183,33 @@ public class ClipServiceTests
         var clips = new ClipService(buffers, storage, diag, clock);
         await Assert.ThrowsAsync<IOException>(() => clips.SaveClipAsync(0, 9 * Frames.Period, 1, [1]));
     }
+
+    [Fact]
+    public async Task Low_disk_deletes_oldest_clips_but_not_ones_in_use()
+    {
+        using var dir = new TempDir();
+        var clock = new ManualClock();
+        await using var diag = new DiagnosticsService(null, () => clock.NowTicks);
+        using var storage = new StorageService(dir.Path, 0, diag);
+        using var buffers = new RollingBufferService(storage.BufferFolder, diag);
+        buffers.Open(1, 2 << 20);
+        for (var i = 0; i < 30; i++) buffers.Write(Frames.Make(1, i));
+        var clips = new ClipService(buffers, storage, diag, clock);
+        var a = await clips.SaveClipAsync(0, 5 * Frames.Period, 1, [1]);
+        var b = await clips.SaveClipAsync(6 * Frames.Period, 11 * Frames.Period, 1, [1], ["wicket"]);
+        var c = await clips.SaveClipAsync(12 * Frames.Period, 17 * Frames.Period, 1, [1]);
+
+        storage.MinFreeBytes = long.MaxValue / 2; // drive "full"
+        clips.IsInUse = id => id == c.Id;
+        clips.KeepTaggedClips = true;
+        Assert.Equal(1, clips.DeleteOldestUntilFree(0));
+        Assert.Null(clips.Get(a.Id));
+        Assert.NotNull(clips.Get(b.Id)); // tagged
+        Assert.NotNull(clips.Get(c.Id)); // armed
+
+        clips.KeepTaggedClips = false;
+        Assert.Equal(1, clips.DeleteOldestUntilFree(0));
+        Assert.Null(clips.Get(b.Id));
+        Assert.NotNull(clips.Get(c.Id));
+    }
 }

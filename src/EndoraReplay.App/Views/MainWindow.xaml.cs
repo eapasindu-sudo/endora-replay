@@ -388,6 +388,22 @@ public partial class MainWindow : Window
     private void OnClipArm(object sender, RoutedEventArgs e) { if (SelectedClipId is { } id) _host.Operator.Execute("ArmClip", clipId: id); }
     private void OnClipTag(object sender, RoutedEventArgs e) { if (SelectedClipId is { } id) ShowTagPicker(id); }
 
+    /// <summary>Fills the right-click Tag submenu with the clip's tags ticked; picking one toggles it.</summary>
+    private void OnClipMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu menu || menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Tag as string == "TagMenu") is not { } tagMenu) return;
+        tagMenu.Items.Clear();
+        var clip = SelectedClipId is { } id ? _host.Clips.Get(id) : null;
+        tagMenu.IsEnabled = clip is not null;
+        if (clip is null) return;
+        foreach (var tag in StandardTags.Cricket.Concat(clip.Tags).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var item = new MenuItem { Header = tag, IsCheckable = true, IsChecked = clip.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase), StaysOpenOnClick = true };
+            item.Click += (_, _) => _host.Operator.Execute("SetTag", text: tag, clipId: clip.Id);
+            tagMenu.Items.Add(item);
+        }
+    }
+
     private void OnClipQueue(object sender, RoutedEventArgs e)
     {
         if (SelectedClipId is not { } id) return;
