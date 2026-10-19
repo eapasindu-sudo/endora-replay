@@ -15,7 +15,6 @@
   <ItemGroup>
     <PackageReference Include="Velopack" Version="1.2.161" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" />
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.10" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\endora.ico" />

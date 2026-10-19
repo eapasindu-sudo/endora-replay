@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 using EndoraReplay.Core.Abstractions;
 using EndoraReplay.Core.Model;
@@ -193,6 +194,8 @@ public sealed class ReplayAutomationService : IAsyncDisposable
                     break;
 
                 case DskOnAirAction d:
+                    if (d.OnAir && Stopwatch.GetTimestamp() < _keyNotBefore)
+                        await Task.Delay(TimeSpan.FromSeconds((_keyNotBefore - Stopwatch.GetTimestamp()) / (double)Stopwatch.Frequency)).ConfigureAwait(false);
                     await _atem.SetDownstreamKeyOnAirAsync(d.Keyer, d.OnAir).ConfigureAwait(false);
                     break;
 
@@ -251,6 +254,13 @@ public sealed class ReplayAutomationService : IAsyncDisposable
             // With the key, a few black frames first so the key is on air before the stinger appears.
             var seq = new StingerSequence(stin.Frames, StingerDirection.In, stin.CutFrame, o.StingerSwitchDelayFrames,
                 o.StingerKey ? KeyLeadFrames : 0, FadeFrames(o), first, _compositor, _format);
+            if (o.StingerKey && _compositor is not null)
+            {
+                // The key must never go on air over the holding slate: put black on the output now and hold the
+                // key back for two frames so the black is on screen first.
+                _playback.Output.Present(_compositor.Black(_format));
+                _keyNotBefore = Stopwatch.GetTimestamp() + 2 * Stopwatch.Frequency * _format.FrameDurationTicks / TimeSpan.TicksPerSecond;
+            }
             segments.Add(new PlayoutSegment(PlayoutSegmentKind.StingerIn, seq, 1.0, seq.CutPointIndex, Label: "stinger in"));
         }
         _playback.SetSpeed(sp.Clip.Speed);
@@ -258,6 +268,8 @@ public sealed class ReplayAutomationService : IAsyncDisposable
         if (!sp.WithStingerIn) _playback.ShowHolding();
         _playback.Start(segments, sp.DelayMs);
     }
+
+    private long _keyNotBefore;
 
     /// <summary>Black frames before a keyed stinger IN, so the ATEM key is on air before the stinger appears.</summary>
     public const int KeyLeadFrames = 4;
