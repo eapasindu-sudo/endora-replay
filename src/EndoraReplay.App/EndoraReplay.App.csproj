@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>EndoraReplay.App</RootNamespace>
+    <AssemblyName>EndoraReplay</AssemblyName>
+    <ApplicationIcon>Assets\endora.ico</ApplicationIcon>
+    <StartupObject>EndoraReplay.App.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>false</PublishReadyToRun>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="1.2.161" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\endora.ico" />
+    <Resource Include="Assets\endora-logo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EndoraReplay.Core\EndoraReplay.Core.csproj" />
+    <ProjectReference Include="..\EndoraReplay.Hardware\EndoraReplay.Hardware.csproj" />
+    <ProjectReference Include="..\EndoraReplay.Remote\EndoraReplay.Remote.csproj" />
+  </ItemGroup>
+</Project>
