@@ -66,6 +66,9 @@ public sealed class OperatorController : IRemoteHandler
     /// <summary>Raised (any thread) when operator-visible state changes.</summary>
     public event Action? Changed;
 
+    /// <summary>Puts the scoreboard (ATEM DSK 2) on or off air; set by the app host.</summary>
+    public Func<string?>? ScoreboardToggle { get; set; }
+
     /// <summary>The UI should open the tag picker for this clip.</summary>
     public event Action<long>? TagPickerRequested;
 
@@ -111,6 +114,7 @@ public sealed class OperatorController : IRemoteHandler
             case OperatorActions.CancelAuto: _automation.Post(new CancelAutoRequested(origin)); return null;
             case OperatorActions.EmergencyOverride: _automation.Post(new EmergencyOverrideRequested(!_automation.OverrideActive, origin)); return null;
             case OperatorActions.ClearError: _automation.Post(new ClearErrorRequested(origin)); return null;
+            case OperatorActions.Scoreboard: return ScoreboardToggle?.Invoke() ?? "Scoreboard is not available.";
 
             case OperatorActions.MarkIn: _clips.MarkIn(CurrentTicks()); return null;
             case OperatorActions.MarkOut:

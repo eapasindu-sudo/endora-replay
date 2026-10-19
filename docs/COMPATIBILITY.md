@@ -18,7 +18,8 @@ and is wired up, not yet run against the hardware. **Unavailable** = not impleme
 | Path | How | Status |
 |---|---|---|
 | USB capture cards (UVC) | OpenCV Media Foundation (MSMF), DirectShow fallback, MJPG requested | **Built, untested on real cards** |
-| NDI inputs (cameras or Program) | NDI SDK runtime `Processing.NDI.Lib.x64.dll`, found through `NDI_RUNTIME_DIR_V6/V5/V4`. The runtime is **not** shipped with Endora; install the free NDI Runtime or NDI Tools. | **Built, untested with real NDI sources** |
+| NDI inputs (cameras or Program) | NDI SDK runtime `Processing.NDI.Lib.x64.dll`, found through `NDI_RUNTIME_DIR_V6/V5/V4`. The runtime is **not** shipped inside Endora. Settings has an "Install NDI Runtime" button that downloads NDI's own installer from `ndi.link/NDIRedistV6` (V5 as fallback), checks it is signed by NDI, and runs it; the operator accepts NDI's licence there. Shipping the DLLs inside Endora is allowed by NDI only under EULA terms that cover them, so that is left for a later decision. | **Built, untested with real NDI sources** |
+| Scoreboard link over Program | Microsoft Edge WebView2 (runtime included in Windows 10/11) on a third HDMI output into an ATEM input, ATEM DSK 2 luma key | **Built, untested on the real ATEM** |
 | MIDI keyboard / controller | Windows multimedia MIDI (winmm), no extra driver. Buttons, jog wheel (auto-detected encoding) and T-bar. | **Built, untested with a real controller** |
 | NDI output of the replay playout | Same runtime, sends BGRA at the project rate. The REPLAY badge is not included. | **Built, untested** |
 | Stinger over live (DSK luma key) | ATEM DSK fill/cut = replay input, luma key clip/gain from settings. Stinger needs a black background. | **Built, tested in simulation only** |

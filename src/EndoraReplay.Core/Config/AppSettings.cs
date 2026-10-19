@@ -23,6 +23,9 @@ public sealed class AppSettings
     /// <summary>MIDI keyboard / controller: programmable buttons, jog wheel and T-bar.</summary>
     public Input.MidiSettings Midi { get; set; } = new();
 
+    /// <summary>Web scoreboard shown over the ATEM Program on DSK 2.</summary>
+    public ScoreboardSettings Scoreboard { get; set; } = new();
+
     [JsonIgnore]
     public VideoFormat Format => Model.VideoFormat.Parse(VideoFormat);
 
@@ -50,6 +53,16 @@ public sealed class AppSettings
             problems.Add($"Device '{dup.Key.DeviceId}' is assigned to more than one source.");
         if (Atem.ReplayInput is < 1 or > 40) problems.Add("ATEM replay input must be between 1 and 40.");
         problems.AddRange(Midi.Validate());
+        if (Scoreboard.Enabled)
+        {
+            if (!Uri.TryCreate(Scoreboard.Url, UriKind.Absolute, out var u) || u.Scheme is not ("http" or "https" or "file"))
+                problems.Add("Scoreboard link must be a full http:// or https:// address.");
+            if (Scoreboard.AtemInput is < 1 or > 40) problems.Add("Scoreboard ATEM input must be between 1 and 40.");
+            if (Scoreboard.AtemInput == Atem.ReplayInput) problems.Add("Scoreboard and replay cannot use the same ATEM input.");
+            if (!string.IsNullOrEmpty(Scoreboard.DisplayDevice) && Scoreboard.DisplayDevice == Output.DisplayDevice)
+                problems.Add("Scoreboard and replay cannot use the same display output.");
+            if (Scoreboard.ZoomPercent is < 25 or > 400) problems.Add("Scoreboard zoom must be 25-400 %.");
+        }
         if (Buffer.Seconds is < 5 or > 3600) problems.Add("Buffer length must be between 5 and 3600 seconds.");
         if (Buffer.JpegQuality is < 30 or > 100) problems.Add("Recording quality must be between 30 and 100.");
         if (Remote.Port is < 1024 or > 65535) problems.Add("Remote port must be between 1024 and 65535.");
@@ -240,6 +253,32 @@ public sealed class OutputSettings
 
     public string NdiOutputName { get; set; } = "Endora Replay";
     public string? HoldingImageFile { get; set; }
+}
+
+/// <summary>
+/// A scoreboard web page (the scoring service's overlay link) rendered full screen on its own HDMI output, wired to
+/// an ATEM input and keyed over Program with DSK 2. Transparent parts of the page show as black and are keyed out.
+/// </summary>
+public sealed class ScoreboardSettings
+{
+    public const int Keyer = 2;
+
+    /// <summary>Hard luma key: only black (the page's transparent background) is keyed out.</summary>
+    public const double KeyClip = 3;
+
+    public const double KeyGain = 100;
+
+    public bool Enabled { get; set; }
+    public string? Url { get; set; }
+
+    /// <summary>Windows display (a third HDMI output) that shows the page, e.g. \\.\DISPLAY3.</summary>
+    public string? DisplayDevice { get; set; }
+
+    /// <summary>ATEM input that the scoreboard HDMI output is wired to.</summary>
+    public int AtemInput { get; set; } = 7;
+
+    /// <summary>Page zoom in percent, for pages designed at another size.</summary>
+    public int ZoomPercent { get; set; } = 100;
 }
 
 public sealed class RemoteSettings

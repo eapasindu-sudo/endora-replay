@@ -76,6 +76,13 @@ With **Endora stinger video**:
 - [ ] T-bar: Set 0 % and Set 100 % at each end; speed follows the T-bar smoothly during playback.
 - [ ] Keyboard Program all keys: each key is learned in turn; Esc stops, Backspace skips.
 
+## 5c. Scoreboard (DSK 2)
+
+- [ ] The scoreboard link shows full screen on the chosen display, with transparent areas black.
+- [ ] SCOREBOARD / F5 puts DSK 2 on air over Program and takes it off; the ATEM panel shows the same state.
+- [ ] Only the black background is keyed out; dark parts of the scoreboard stay solid.
+- [ ] A stinger (DSK 1) plays correctly while the scoreboard is on air.
+
 ## 5b. NDI
 
 - [ ] With the NDI Runtime installed, NDI sources appear in Settings → Capture inputs and can be used as a camera or as Program.

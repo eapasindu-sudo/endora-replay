@@ -600,6 +600,14 @@ public partial class MainWindow : Window
         AutoInfo.Text = auto.ErrorReason ?? op.LastAlert ?? "Mark IN/OUT (or press REPLAY for the last 8 seconds).";
         if (op.Queue.Count > 0) AutoInfo.Text += $"\nQueue: {op.Queue.Count} clip(s)";
         OverrideBtn.Style = (Style)FindResource(auto.OverrideActive ? "BtnRed" : "BtnDanger");
+        ScoreBtn.Visibility = s.Scoreboard.Enabled ? Visibility.Visible : Visibility.Collapsed;
+        var scoreOn = _host.ScoreboardOnAir;
+        var scoreText = scoreOn ? "SCOREBOARD · ON AIR" : "SCOREBOARD · OFF";
+        if (!Equals(ScoreBtn.Content, scoreText))
+        {
+            ScoreBtn.Content = scoreText;
+            ScoreBtn.Style = (Style)FindResource(scoreOn ? "BtnGreen" : "BtnBase");
+        }
 
         // Alert banner: errors, override, ATEM loss, transient operator errors
         string? alert = null;

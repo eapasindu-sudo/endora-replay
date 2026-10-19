@@ -219,7 +219,10 @@ public partial class SettingsWindow : Window
         });
         card.Children.Add(head);
         foreach (var b in _backends.Where(b => b.UnavailableReason is not null))
+        {
             card.Children.Add(Note($"{b.Kind}: {b.UnavailableReason}", "Amber"));
+            if (b.Kind == CaptureBackendKind.Ndi) card.Children.Add(NdiInstallButton());
+        }
 
         var grid = new Grid();
         foreach (var w in new[] { 70.0, 54, 170, double.NaN, 110, 220 })
@@ -433,9 +436,44 @@ public partial class SettingsWindow : Window
         Toggle(ndi, "Also send the replay playout as an NDI source", o.NdiOutput, v => { o.NdiOutput = v; Changed(); },
             "Sends the same pictures as the replay output on the network, for vMix, OBS or another PC. The REPLAY badge is not included. Applies after restarting Endora.");
         Field(ndi, "NDI source name", TextBox(o.NdiOutputName, v => { o.NdiOutputName = v; Changed(); }), "Shown as \"PC NAME (Endora Replay)\" on the network.");
-        if (Hardware.Ndi.NdiSender.UnavailableReason is { } ndiWhy)
+        if (Hardware.Ndi.NdiRuntime.UnavailableReason is { } ndiWhy)
+        {
             ndi.Children.Add(Note(ndiWhy, "Amber"));
+            ndi.Children.Add(NdiInstallButton());
+        }
         ndi.Children.Add(Note("UNTESTED: NDI output and NDI inputs have not been tested on real NDI equipment yet. NDI® is a registered trademark of Vizrt NDI AB.", "Violet"));
+
+        var sb = _edit.Scoreboard;
+        var score = Card(root, "Scoreboard over Program (DSK 2)");
+        score.Children.Add(Note("Endora shows the scoreboard link full screen on its own HDMI output. Wire that output to an ATEM input; Endora keys it over Program with DSK 2. Parts of the page that are transparent show as black and are keyed out.", "Dim"));
+        Toggle(score, "Use a scoreboard", sb.Enabled, v => { sb.Enabled = v; Changed(); Rebuild(); }, null);
+        if (sb.Enabled)
+        {
+            Field(score, "Scoreboard link", TextBox(sb.Url ?? "", v => { sb.Url = string.IsNullOrWhiteSpace(v) ? null : v.Trim(); Changed(); }),
+                "The overlay link from your scoring service (the one you would add to OBS or vMix as a browser source).");
+            var sdisplays = DisplayInfo.List();
+            var sitems = sdisplays.Select(d => ($"{d}", (string?)d.DeviceName)).ToList();
+            if (sb.DisplayDevice is not null && sdisplays.All(d => d.DeviceName != sb.DisplayDevice))
+                sitems.Insert(0, ($"{sb.DisplayDevice} — NOT CONNECTED", sb.DisplayDevice));
+            sitems.Insert(0, ("(choose a display)", null));
+            Field(score, "Scoreboard display", Combo(sitems, sb.DisplayDevice, v => { sb.DisplayDevice = v; Changed(); }),
+                "A third screen output of this PC (not the operator screen and not the replay output), set to Extend at 1920×1080.");
+            Field(score, "ATEM input", IntBox(sb.AtemInput, v => { sb.AtemInput = v; Changed(); }), "The ATEM HDMI input that the scoreboard output is plugged into.");
+            Field(score, "Zoom (%)", IntBox(sb.ZoomPercent, v => { sb.ZoomPercent = v; Changed(); }), "Make the page bigger or smaller if it was designed for another size.");
+            var sbStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            Field(score, "Status", sbStatus, null);
+            var reload = new Button { Content = "Reload page", Style = S("BtnBase"), Padding = new Thickness(12, 5, 12, 5), HorizontalAlignment = HorizontalAlignment.Left };
+            reload.Click += (_, _) => _host.Scoreboard.Reload();
+            Field(score, "", reload, $"Put it on air with the SCOREBOARD button or {KeyBindingService.Pretty(_edit.KeyBindings.GetValueOrDefault(OperatorActions.Scoreboard) ?? "")}.");
+            score.Children.Add(Note("UNTESTED: the scoreboard output and DSK 2 have not been tested on a real ATEM yet. The page needs the Microsoft Edge WebView2 Runtime, which Windows 10 and 11 normally have.", "Violet"));
+            var prevRefresh = _refreshPage;
+            _refreshPage = () =>
+            {
+                prevRefresh?.Invoke();
+                sbStatus.Text = _host.Scoreboard.Status + (_host.ScoreboardOnAir ? " · ON AIR" : "");
+                sbStatus.Foreground = _host.Scoreboard.Ready ? B("Green") : B("Amber");
+            };
+        }
 
         var hold = Card(root, "Holding frame (when no replay is playing)");
         Field(hold, "Show", Combo(new[] { ("Endora slate", HoldingFrameMode.Slate), ("Last replay frame", HoldingFrameMode.LastFrame), ("Black", HoldingFrameMode.Black) },
@@ -461,7 +499,7 @@ public partial class SettingsWindow : Window
 
     private static readonly (string Group, string[] Actions)[] ShortcutGroups =
     [
-        ("Air", [OperatorActions.Replay, OperatorActions.Live, OperatorActions.Stop, OperatorActions.CancelAuto, OperatorActions.EmergencyOverride, OperatorActions.ClearError]),
+        ("Air", [OperatorActions.Replay, OperatorActions.Live, OperatorActions.Stop, OperatorActions.CancelAuto, OperatorActions.EmergencyOverride, OperatorActions.ClearError, OperatorActions.Scoreboard]),
         ("Clips", [OperatorActions.MarkIn, OperatorActions.MarkOut, OperatorActions.SaveClip, OperatorActions.Tag, OperatorActions.Queue]),
         ("Cue", [OperatorActions.LiveMode, OperatorActions.JogMode, OperatorActions.FrameBack, OperatorActions.FrameForward, OperatorActions.ShuttleBack, OperatorActions.ShuttleForward]),
         ("Speed", [OperatorActions.Speed100, OperatorActions.Speed50, OperatorActions.Speed25]),
@@ -473,6 +511,7 @@ public partial class SettingsWindow : Window
         OperatorActions.CancelAuto => "Cancel auto",
         OperatorActions.EmergencyOverride => "Emergency manual override",
         OperatorActions.ClearError => "Clear error",
+        OperatorActions.Scoreboard => "Scoreboard on/off (DSK 2)",
         OperatorActions.MarkIn => "Mark IN",
         OperatorActions.MarkOut => "Mark OUT",
         OperatorActions.SaveClip => "Save clip",
@@ -778,6 +817,45 @@ public partial class SettingsWindow : Window
     }
 
     private bool OnAir => _host.Automation.State is ReplayState.PLAYING or ReplayState.WAITING_FOR_PROGRAM or ReplayState.REPLAY_COMPLETE;
+
+    /// <summary>Downloads NDI's own runtime installer and runs it; the page refreshes when it finishes.</summary>
+    private FrameworkElement NdiInstallButton()
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var btn = new Button { Content = "Install NDI Runtime", Style = S("BtnBlue"), Padding = new Thickness(12, 6, 12, 6), HorizontalAlignment = HorizontalAlignment.Left };
+        var status = new TextBlock { Foreground = B("Dim"), TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new Thickness(0, 6, 0, 0),
+            Text = "Downloads the free NDI Runtime from NDI (ndi.video) and opens its installer. Needs internet and administrator approval." };
+        btn.Click += async (_, _) =>
+        {
+            btn.IsEnabled = false;
+            // Created here so progress updates come back on the UI thread.
+            var progress = new Progress<string>(m => status.Text = m);
+            var error = await Task.Run(() => NdiRuntimeInstaller.DownloadAndRunAsync(progress, CancellationToken.None));
+            if (error is not null)
+            {
+                status.Text = error;
+                status.Foreground = B("Red");
+                btn.IsEnabled = true;
+                return;
+            }
+            Hardware.Ndi.NdiRuntime.Retry();
+            if (Hardware.Ndi.NdiRuntime.UnavailableReason is null)
+            {
+                status.Text = "NDI Runtime installed. Press Rescan to find NDI sources. Restart Endora to start NDI output.";
+                status.Foreground = B("Green");
+                _ = DiscoverDevicesAsync();
+            }
+            else
+            {
+                status.Text = "The installer closed but the NDI Runtime is still not found. If you cancelled it, try again; otherwise restart Endora.";
+                status.Foreground = B("Amber");
+                btn.IsEnabled = true;
+            }
+        };
+        panel.Children.Add(btn);
+        panel.Children.Add(status);
+        return panel;
+    }
 
     // ================= builders =================
 

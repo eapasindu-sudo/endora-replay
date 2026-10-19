@@ -264,7 +264,9 @@
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="8" />
                                 <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
+                            <Button x:Name="ScoreBtn" Grid.Row="3" Grid.ColumnSpan="5" Tag="Scoreboard" Content="SCOREBOARD" FontSize="12" Height="30" Margin="0,8,0,0" Visibility="Collapsed" />
                             <Button Grid.RowSpan="3" Tag="Replay" Content="▶ REPLAY" Style="{StaticResource BtnRed}" FontSize="17" />
                             <Button Grid.Column="2" Tag="Live" Content="LIVE" Style="{StaticResource BtnGreen}" />
                             <Button Grid.Column="4" Tag="Stop" Content="■ STOP" />

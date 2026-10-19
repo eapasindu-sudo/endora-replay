@@ -39,6 +39,7 @@ public sealed class AppHost : IAsyncDisposable
     public OperatorController Operator { get; private set; } = null!;
     public RemoteServer Remote { get; private set; } = null!;
     public WinMmMidiInput Midi { get; } = new();
+    public ScoreboardOutput Scoreboard { get; private set; } = null!;
     private MidiMapper _midiMap = new(new MidiSettings());
 
     /// <summary>While set (by the settings window), MIDI messages go here to be learned instead of running actions.</summary>
@@ -104,6 +105,9 @@ public sealed class AppHost : IAsyncDisposable
         await StartRemoteAsync().ConfigureAwait(false);
         Midi.MessageReceived += OnMidi;
         StartMidi();
+        Scoreboard = new ScoreboardOutput(Diagnostics, s.Buffer.DataFolder);
+        op.ScoreboardToggle = ToggleScoreboard;
+        StartScoreboard();
         _ = Task.Run(StartCaptureAsync);
     }
 
@@ -168,6 +172,39 @@ public sealed class AppHost : IAsyncDisposable
         {
             Diagnostics.Error(LogCategory.App, $"MIDI could not start: {e.Message}");
         }
+    }
+
+    private void StartScoreboard() =>
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            try { Scoreboard.Apply(Settings.Scoreboard); }
+            catch (Exception e) { Diagnostics.Error(LogCategory.Output, $"Scoreboard could not start: {e.Message}"); }
+        });
+
+    public bool ScoreboardOnAir => Atem.Snapshot.IsDownstreamKeyOnAir(ScoreboardSettings.Keyer);
+
+    /// <summary>Puts the scoreboard on or off air with ATEM DSK 2. Returns an error for the operator, or null.</summary>
+    public string? ToggleScoreboard() => SetScoreboard(!ScoreboardOnAir);
+
+    public string? SetScoreboard(bool onAir)
+    {
+        var sb = Settings.Scoreboard;
+        if (!sb.Enabled) return "Scoreboard is not set up (Settings → Output → Scoreboard).";
+        if (Automation.OverrideActive) return "Emergency override is on: Endora sends no ATEM commands.";
+        if (!Atem.IsConnected) return "ATEM is not connected.";
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (onAir) await Atem.ConfigureDownstreamKeyAsync(ScoreboardSettings.Keyer, sb.AtemInput, ScoreboardSettings.KeyClip, ScoreboardSettings.KeyGain).ConfigureAwait(false);
+                await Atem.SetDownstreamKeyOnAirAsync(ScoreboardSettings.Keyer, onAir).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Diagnostics.Error(LogCategory.Atem, $"Scoreboard DSK {ScoreboardSettings.Keyer}: {e.Message}");
+            }
+        });
+        return null;
     }
 
     private void OnMidi(MidiMessage m)
@@ -238,6 +275,7 @@ public sealed class AppHost : IAsyncDisposable
         if (restartAtem) await StartAtemAsync().ConfigureAwait(false);
         if (restartRemote) await StartRemoteAsync().ConfigureAwait(false);
         if (restartMidi) StartMidi();
+        StartScoreboard();
         if (restartCapture) await StartCaptureAsync().ConfigureAwait(false);
         Diagnostics.Info(LogCategory.App, "Settings applied" + (RestartRequired ? " (restart Endora to apply output/format/folder changes)" : ""));
     }

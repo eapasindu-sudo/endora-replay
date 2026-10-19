@@ -4,8 +4,8 @@ using System.Runtime.InteropServices;
 namespace EndoraReplay.Hardware.Ndi;
 
 /// <summary>
-/// Minimal P/Invoke surface of the NDI® SDK (receive, find, send). The NDI Runtime is NOT shipped with Endora: the user
-/// installs it (NDI Tools or the NDI Runtime), which sets NDI_RUNTIME_DIR_V6/V5. NDI® is a registered trademark of Vizrt NDI AB.
+/// Minimal P/Invoke surface of the NDI® SDK (receive, find, send). The NDI Runtime is NOT shipped inside Endora: Settings
+/// downloads the official NDI Runtime installer from NDI and runs it (or the user installs NDI Tools), which sets NDI_RUNTIME_DIR_V6/V5. NDI® is a registered trademark of Vizrt NDI AB.
 /// UNTESTED ON HARDWARE: written against the documented NDI 6 C API; validate with docs/HARDWARE_VALIDATION.md.
 /// </summary>
 internal static class NdiInterop
@@ -25,7 +25,8 @@ internal static class NdiInterop
         if (name != Lib) return IntPtr.Zero;
         foreach (var env in new[] { "NDI_RUNTIME_DIR_V6", "NDI_RUNTIME_DIR_V5", "NDI_RUNTIME_DIR_V4" })
         {
-            var dir = Environment.GetEnvironmentVariable(env);
+            // The machine value also covers a runtime installed while Endora is running.
+            var dir = Environment.GetEnvironmentVariable(env) ?? Environment.GetEnvironmentVariable(env, EnvironmentVariableTarget.Machine);
             if (string.IsNullOrEmpty(dir)) continue;
             var file = Path.Combine(dir, Lib);
             if (File.Exists(file) && NativeLibrary.TryLoad(file, out var h)) return h;
@@ -42,6 +43,13 @@ internal static class NdiInterop
             EnsureInitialized();
             return _loadError;
         }
+    }
+
+    /// <summary>Forgets an earlier "not installed" result so the next use looks for the runtime again.</summary>
+    public static void Retry()
+    {
+        lock (Gate)
+            if (!_initialized) _loadError = null;
     }
 
     public static bool EnsureInitialized()
@@ -62,7 +70,7 @@ internal static class NdiInterop
             }
             catch (Exception e) when (e is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
             {
-                _loadError = "NDI Runtime not installed. Install NDI Tools or the NDI 6 Runtime from ndi.video, then restart Endora.";
+                _loadError = "NDI Runtime not installed. Press \"Install NDI Runtime\" in Settings, or install NDI Tools from ndi.video.";
                 return false;
             }
         }

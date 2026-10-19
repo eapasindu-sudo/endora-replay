@@ -25,6 +25,7 @@ public static class OperatorActions
     public const string Speed50 = "Speed50";
     public const string Speed25 = "Speed25";
     public const string ClearError = "ClearError";
+    public const string Scoreboard = "Scoreboard";
     public static string Camera(int n) => $"Camera{n}";
 }
 
@@ -59,6 +60,7 @@ public static class KeyBindingDefaults
             [OperatorActions.Speed50] = "F2",
             [OperatorActions.Speed25] = "F3",
             [OperatorActions.ClearError] = "F9",
+            [OperatorActions.Scoreboard] = "F5",
         };
         for (var i = 1; i <= 8; i++) d[OperatorActions.Camera(i)] = $"D{i}";
         return d;
