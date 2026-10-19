@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+publish/
+Releases/
+TestResults/
+lib/*.dll
+!lib/README.md
