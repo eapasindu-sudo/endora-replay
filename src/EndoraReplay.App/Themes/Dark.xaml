@@ -422,17 +422,28 @@
         <Setter Property="Foreground" Value="{StaticResource Text}" />
         <Setter Property="BorderBrush" Value="{StaticResource Line2}" />
     </Style>
-    <!-- Right-click menus use the light Windows menu, so their text must be dark. The app-wide TextBlock style
-         (light text) is overridden inside them, including submenus such as the clip Tag list. -->
+    <!-- Right-click menus use the light Windows menu, so their text must be dark. Menu item headers are drawn by a
+         TextBlock that WPF generates inside the item's template, and the app-wide TextBlock style (light text) reaches
+         it there while styles nested in the menu do not, so every menu item draws its header with its own TextBlock. -->
+    <DataTemplate x:Key="MenuHeaderText">
+        <TextBlock Text="{Binding}">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="Black" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=MenuItem}}" Value="False">
+                            <Setter Property="Foreground" Value="#FF8A8A8A" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+    </DataTemplate>
+    <Style TargetType="MenuItem">
+        <Setter Property="Foreground" Value="Black" />
+        <Setter Property="HeaderTemplate" Value="{StaticResource MenuHeaderText}" />
+    </Style>
     <Style TargetType="ContextMenu">
         <Setter Property="Foreground" Value="Black" />
-        <Style.Resources>
-            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                <Setter Property="Foreground" Value="Black" />
-            </Style>
-            <Style TargetType="MenuItem">
-                <Setter Property="Foreground" Value="Black" />
-            </Style>
-        </Style.Resources>
     </Style>
 </ResourceDictionary>

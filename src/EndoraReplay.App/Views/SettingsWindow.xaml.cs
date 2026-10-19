@@ -266,7 +266,7 @@ public partial class SettingsWindow : Window
             {
                 if (device.SelectedItem is CaptureDeviceInfo d) { src.DeviceId = d.DeviceId; src.DeviceName = d.Name; src.Backend = d.Backend; }
                 else if (device.SelectedItem is "(none)") { src.DeviceId = null; src.DeviceName = null; }
-                check.Text = "";
+                check.Text = "Save to start this device.";
                 Changed();
             };
             test.Click += async (_, _) =>
@@ -288,8 +288,21 @@ public partial class SettingsWindow : Window
                     check.Foreground = B("Red");
                 }
             };
-            var health = _host.Diagnostics.SourceHealthSnapshot().FirstOrDefault(h => h.SourceId == src.SourceId);
-            if (health is not null) check.Text = $"Now: {health.Status}{(health.MeasuredFps > 0 ? $" · {health.MeasuredFps:0.0} fps" : "")}";
+            // Live status with the reason, so "Error" never appears without saying why. A pending device change shows
+            // its Test result instead until Save restarts capture.
+            var sourceId = src.SourceId;
+            var prevRefresh = _refreshPage;
+            _refreshPage = () =>
+            {
+                prevRefresh?.Invoke();
+                if (check.Text is { Length: > 0 } t && !t.StartsWith("Now:", StringComparison.Ordinal)) return;
+                var health = _host.Diagnostics.SourceHealthSnapshot().FirstOrDefault(h => h.SourceId == sourceId);
+                if (health is null) { check.Text = ""; return; }
+                var bad = health.Status is SourceStatus.Error or SourceStatus.NoSignal or SourceStatus.ModeMismatch;
+                check.Text = $"Now: {health.Status}{(health.MeasuredFps > 0 ? $" · {health.MeasuredFps:0.0} fps" : "")}"
+                    + (bad && !string.IsNullOrEmpty(health.LastError) ? $" · {health.LastError}" : "");
+                check.Foreground = bad ? B("Amber") : B("Dim");
+            };
             AddRow(grid, label, on, name, device, test, check);
         }
         card.Children.Add(grid);

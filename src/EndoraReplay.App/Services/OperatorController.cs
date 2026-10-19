@@ -209,7 +209,7 @@ public sealed class OperatorController : IRemoteHandler
             var moved = playing with { SourceId = cam, Description = Describe(playing.ClipId, cam, playing.InTicks, playing.OutTicks) };
             IFrameSequence angle;
             try { angle = OpenClip(moved); }
-            catch (FrameUnavailableException e) { return e.Message; }
+            catch (FrameUnavailableException e) { return NotRecording(cam) ?? e.Message; }
             if (_playback.SwitchAngle(angle))
             {
                 _automation.Post(new PlayingAngleChanged(moved));
@@ -229,6 +229,15 @@ public sealed class OperatorController : IRemoteHandler
             _automation.Post(new ArmRequested(armed with { SourceId = cam, Description = Describe(armed.ClipId, cam, armed.InTicks, armed.OutTicks) }));
         }
         return null;
+    }
+
+    /// <summary>Why a camera has no frames to cut to, when the reason is that it is not recording.</summary>
+    private string? NotRecording(int cam)
+    {
+        if (_capture.RunningCameraIds.Contains(cam)) return null;
+        var h = _diag.SourceHealthSnapshot().FirstOrDefault(x => x.SourceId == cam);
+        var why = h is null ? "not started" : h.Status + (string.IsNullOrEmpty(h.LastError) ? "" : $": {h.LastError}");
+        return $"Cam {cam} is not recording ({why}), so the replay cannot cut to it. Check Settings → Capture inputs.";
     }
 
     private string? CycleAngle(int dir)
