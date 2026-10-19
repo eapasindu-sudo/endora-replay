@@ -39,6 +39,9 @@ public sealed record StingerCutPoint(bool IsReturn) : AutomationEvent;
 
 /// <summary>The Endora stinger finished playing on the replay output.</summary>
 public sealed record StingerFinished(bool IsReturn) : AutomationEvent;
+
+/// <summary>The operator switched the running replay to another camera angle.</summary>
+public sealed record PlayingAngleChanged(ClipRef Clip) : AutomationEvent;
 public sealed record ClipPlaybackStarted : AutomationEvent;
 public sealed record ClipPlaybackCompleted : AutomationEvent;
 public sealed record PlayoutFinished : AutomationEvent;
@@ -185,6 +188,7 @@ public sealed class ReplayStateMachine
             case ClearErrorRequested c: OnClearError(c, a); break;
             case StingerCutPoint cp: OnCutPoint(cp, a); break;
             case StingerFinished sf: OnStingerFinished(sf, nowTicks, a); break;
+            case PlayingAngleChanged pa when _playing is not null: _playing = pa.Clip; break;
             case ClipPlaybackCompleted: OnClipCompleted(nowTicks, a); break;
             case PlayoutFinished: break;
             case PlaybackFailed f: Fail($"Playback failed: {f.Reason}", a, stopPlayout: true); break;

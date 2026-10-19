@@ -119,6 +119,20 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
         lock (_gate) return _job?.Release(delayMs) ?? false;
     }
 
+    /// <summary>
+    /// Switches the replay that is playing (or about to play after a stinger) to another camera angle, continuing at the
+    /// same moment on the shared clock. Returns false when no replay clip is running.
+    /// </summary>
+    public bool SwitchAngle(IFrameSequence angle)
+    {
+        lock (_gate)
+        {
+            if (_job is not { IsFinished: false } j || !j.HasClip) return false;
+            j.SwitchAngle(angle);
+            return true;
+        }
+    }
+
     public void Pause(bool paused)
     {
         lock (_gate) _job?.SetPaused(paused);
@@ -179,6 +193,20 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
         }
 
         public bool IsFinished { get; private set; }
+        private volatile IFrameSequence? _angleSwap;
+        private volatile bool _clipDone;
+
+        /// <summary>True while a clip segment is playing or still queued.</summary>
+        public bool HasClip
+        {
+            get
+            {
+                if (_svc.CurrentKind == PlayoutSegmentKind.Clip && !_clipDone) return true;
+                lock (_gate) return _segments.Any(s => s.Kind == PlayoutSegmentKind.Clip);
+            }
+        }
+
+        public void SwitchAngle(IFrameSequence angle) => _angleSwap = angle;
 
         public void Append(PlayoutSegment s)
         {
@@ -252,7 +280,7 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
 
         private void PlaySegment(PlayoutSegment seg, CancellationToken ct)
         {
-            var seq = seg.Frames;
+            var seq = seg.Kind == PlayoutSegmentKind.Clip && Interlocked.Exchange(ref _angleSwap, null) is { } early ? early : seg.Frames;
             if (seq.Count == 0) throw new FrameUnavailableException($"{seg.Kind} has no frames.");
             _svc.CurrentKind = seg.Kind;
             _svc.SetStatus(PlaybackStatus.Playing);
@@ -270,6 +298,16 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
 
             while (!ct.IsCancellationRequested)
             {
+                if (seg.Kind == PlayoutSegmentKind.Clip && Interlocked.Exchange(ref _angleSwap, null) is { } swap && swap.Count > 0)
+                {
+                    // Same moment on the new angle: all cameras share one session clock.
+                    var now = seq.StartTicks + (long)sourcePos;
+                    seq = swap;
+                    sourcePos = Math.Max(0, now - seq.StartTicks);
+                    idx = 0;
+                    shownIdx = -1;
+                    _svc._diag.Info(LogCategory.Playback, $"Angle switched to source {seq.SourceId}");
+                }
                 var target = seq.StartTicks + (long)sourcePos;
                 if (target > seq.EndTicks + period / 2) break;
                 while (idx + 1 < seq.Count && seq.TicksAt(idx + 1) <= target) idx++;
@@ -295,6 +333,7 @@ public sealed class ReplayPlaybackService : IAsyncDisposable
                 tick++;
                 WaitUntil(sw, tick * period, ct);
             }
+            if (seg.Kind == PlayoutSegmentKind.Clip) _clipDone = true;
             if (!cutFired && !ct.IsCancellationRequested) _svc.CutPointReached?.Invoke(seg.Kind);
             if (!ct.IsCancellationRequested)
             {

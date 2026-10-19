@@ -196,6 +196,23 @@ public sealed class OperatorController : IRemoteHandler
         var src = _settings.Sources.FirstOrDefault(s => s.SourceId == cam && s.Role == SourceRole.Camera);
         if (src is null || !src.Enabled) return $"Cam {cam} is not enabled.";
         SelectedCamera = cam;
+
+        // During a replay, cut the replay itself to the new angle at the same moment.
+        if (_automation.PlayingClip is { } playing && playing.SourceId != cam &&
+            _automation.State is ReplayState.PLAYING or ReplayState.WAITING_FOR_PROGRAM)
+        {
+            var moved = playing with { SourceId = cam, Description = Describe(playing.ClipId, cam, playing.InTicks, playing.OutTicks) };
+            IFrameSequence angle;
+            try { angle = OpenClip(moved); }
+            catch (FrameUnavailableException e) { return e.Message; }
+            if (_playback.SwitchAngle(angle))
+            {
+                _automation.Post(new PlayingAngleChanged(moved));
+                _diag.Info(LogCategory.Playback, $"Replay angle → Cam {cam}");
+                return null;
+            }
+        }
+
         // Angle change re-arms the same moment on the new camera. Never substitutes a missing angle.
         if (_automation.ArmedClip is { } armed && armed.SourceId != cam)
         {

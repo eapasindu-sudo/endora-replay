@@ -75,6 +75,33 @@ public class PlaybackTests
     }
 
     [Fact]
+    public async Task Switching_angle_continues_at_the_same_moment_on_the_other_camera()
+    {
+        var o = new RecordingOutput();
+        var p = Service(o);
+        var done = false;
+        p.PlayoutCompleted += () => done = true;
+        p.SetSpeed(1.0);
+        var camB = new MemoryFrameSequence(2, Enumerable.Range(0, 400).Select(i => new EncodedFrame
+        {
+            SourceId = 2, FrameNumber = 1000 + i, TimestampTicks = i * Fast.FrameDurationTicks,
+            Width = 1920, Height = 1080, Codec = FrameCodec.Jpeg, Data = [1],
+        }).ToList());
+        p.Start([new PlayoutSegment(PlayoutSegmentKind.Clip, Seq(400))]);
+        Assert.True(await WaitFor(() => o.Presented.Count >= 50));
+        Assert.True(p.SwitchAngle(camB));
+        Assert.True(await WaitFor(() => done));
+
+        var frames = o.Presented.ToArray();
+        var lastA = frames.TakeWhile(f => f < 1000).Last();
+        var firstB = frames.First(f => f >= 1000) - 1000;
+        // Picks up within a frame of where camera A was, and plays on to the end on camera B.
+        Assert.InRange(firstB, lastA, lastA + 2);
+        Assert.Equal(1399, frames[^1]);
+        Assert.False(p.SwitchAngle(camB));
+    }
+
+    [Fact]
     public async Task Half_and_quarter_speed_repeat_frames()
     {
         foreach (var (speed, repeats) in new[] { (0.5, 2), (0.25, 4) })
