@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0d10">
+<title>Endora vMix Remote</title>
+<style>
+:root{--bg:#0b0d10;--panel:#12161b;--panel2:#171c22;--line:#232a33;--line2:#2d3640;--text:#e6ebf0;--dim:#8a96a3;--red:#ff3b3b;--green:#20d07a;--amber:#ffb020;--blue:#3aa0ff;--violet:#9b7bff;--accent:#ff6a1a}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Inter,Roboto,sans-serif;font-size:13px;height:100%;touch-action:manipulation}
+.app{min-height:100%;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 14px);gap:10px;max-width:520px;margin:0 auto}
+.row{display:flex;gap:7px;align-items:center}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.14em;font-size:12px}
+.mark{width:26px;height:26px;border-radius:7px;background:conic-gradient(from 210deg,var(--accent),#ff2d55,var(--accent));display:grid;place-items:center;font-size:11px;color:#fff}
+.sp{flex:1}
+.chip{height:26px;padding:0 9px;border-radius:7px;display:flex;align-items:center;gap:6px;font-weight:800;font-size:10px;letter-spacing:.06em;background:var(--panel2);border:1px solid var(--line)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.ok .dot{background:var(--green)} .bad .dot{background:var(--red)}
+.st{height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:900;letter-spacing:.12em;font-size:16px;background:var(--panel2);border:1px solid var(--line)}
+.st.onair{background:var(--red);border-color:var(--red);color:#fff}
+.st.moving{background:rgba(255,176,32,.18);border-color:var(--amber);color:var(--amber)}
+.st.override{background:repeating-linear-gradient(45deg,#3a0d0d 0 8px,#2a0808 8px 16px);border-color:var(--red);color:#ffb3b3}
+.play{font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.9}
+.lbl{font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--dim);margin:2px 2px -4px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.btn{height:46px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-weight:800;letter-spacing:.05em;font-size:14px;display:flex;align-items:center;justify-content:center;transition:transform .06s;text-align:center;line-height:1.1}
+.btn:active{transform:scale(.96)}
+.btn.sel{background:rgba(58,160,255,.2);border-color:var(--blue);color:#cfe6ff}
+.btn.big{height:74px;font-size:22px;letter-spacing:.08em}
+.btn small{display:block;font-size:9px;font-weight:700;opacity:.75;letter-spacing:.04em;margin-top:3px}
+.b-red{background:linear-gradient(#e0262b,#a8141a);border-color:#ff5a5a;color:#fff}
+.b-green{background:linear-gradient(#17b86a,#0c7f48);border-color:#3df29a;color:#fff}
+.b-amber{background:rgba(255,176,32,.12);border-color:rgba(255,176,32,.6);color:var(--amber)}
+.b-blue{background:rgba(58,160,255,.14);border-color:var(--blue);color:#cfe6ff}
+.b-danger{background:repeating-linear-gradient(45deg,#3a0d0d 0 8px,#2a0808 8px 16px);border-color:var(--red);color:#ffb3b3;font-size:11px}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 70px);transform:translateX(-50%);background:#2a1214;border:1px solid var(--red);color:#ffd0d0;padding:10px 14px;border-radius:10px;font-weight:600;max-width:90%;display:none;z-index:10}
+.alert{padding:9px 11px;border-radius:9px;background:rgba(255,59,59,.14);border:1px solid var(--red);color:#ffd0d0;font-weight:600;display:none}
+.offline{position:fixed;inset:0;background:rgba(11,13,16,.92);display:none;place-items:center;text-align:center;z-index:20;padding:30px;line-height:1.6;color:var(--dim)}
+.locked .tr{opacity:.35;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="row">
+    <div class="logo"><div class="mark">E</div>ENDORA · vMIX</div>
+    <div class="sp"></div>
+    <div class="chip bad" id="vmix"><span class="dot"></span>vMIX</div>
+    <div class="chip bad" id="atem"><span class="dot"></span>ATEM</div>
+  </div>
+
+  <div class="st" id="state"><span id="stateText">CONNECTING</span><span class="play" id="playing"></span></div>
+  <div class="alert" id="alert"></div>
+
+  <div class="g2 tr">
+    <div class="btn big b-red" data-a="vmix.Play">PLAY<small>stinger + ATEM + vMix play</small></div>
+    <div class="btn big b-amber" data-a="vmix.Stop">STOP<small>pause; back to live after</small></div>
+  </div>
+  <div class="g2 tr">
+    <div class="btn b-green" data-a="Live">LIVE<small>stinger back to camera</small></div>
+    <div class="btn b-amber" data-a="Stop">CUT TO LIVE<small>no stinger</small></div>
+  </div>
+
+  <div class="lbl">MARK</div>
+  <div class="g3">
+    <div class="btn b-blue" data-a="vmix.MarkIn">IN</div>
+    <div class="btn b-blue" data-a="vmix.MarkOut">OUT</div>
+    <div class="btn" data-a="vmix.MarkCancel">CANCEL</div>
+  </div>
+  <div class="g4">
+    <div class="btn" data-a="vmix.Last" data-v="5">LAST 5s</div>
+    <div class="btn" data-a="vmix.Last" data-v="8">LAST 8s</div>
+    <div class="btn" data-a="vmix.Last" data-v="10">LAST 10s</div>
+    <div class="btn" data-a="vmix.Last" data-v="15">LAST 15s</div>
+  </div>
+
+  <div class="lbl">CAMERA</div>
+  <div class="g4" id="cams"></div>
+
+  <div class="lbl">JOG &amp; SPEED</div>
+  <div class="g4">
+    <div class="btn" data-a="vmix.Jog" data-v="-10">−10</div>
+    <div class="btn" data-a="vmix.Jog" data-v="-1">−1</div>
+    <div class="btn" data-a="vmix.Jog" data-v="1">+1</div>
+    <div class="btn" data-a="vmix.Jog" data-v="10">+10</div>
+  </div>
+  <div class="g4" id="speeds">
+    <div class="btn" data-a="vmix.Speed" data-v="1">100%</div>
+    <div class="btn" data-a="vmix.Speed" data-v="0.75">75%</div>
+    <div class="btn" data-a="vmix.Speed" data-v="0.5">50%</div>
+    <div class="btn" data-a="vmix.Speed" data-v="0.25">25%</div>
+  </div>
+
+  <div class="lbl">EVENTS</div>
+  <div class="g4">
+    <div class="btn" data-a="vmix.PreviousEvent">◀ PREV</div>
+    <div class="btn tr" data-a="vmix.PlayLast">PLAY<small>last event</small></div>
+    <div class="btn" data-a="vmix.NextEvent">NEXT ▶</div>
+    <div class="btn" data-a="vmix.Now">NOW</div>
+  </div>
+
+  <div class="g3">
+    <div class="btn b-blue tr" data-a="CancelAuto" id="hold">HOLD</div>
+    <div class="btn" data-a="Scoreboard">SCORE</div>
+    <div class="btn b-danger tr" data-a="EmergencyOverride">OVERRIDE</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="offline" id="offline"><div><b>Reconnecting to Endora…</b><br>Make sure this phone is on the same Wi-Fi as the Endora PC.<br>If the code changed, scan the new QR code.</div></div>
+
+<script>
+(() => {
+  const code = decodeURIComponent(location.pathname.split('/').pop());
+  const $ = id => document.getElementById(id);
+  let ws, st = null, retry = 0, cam = null;
+  const name = (navigator.userAgent.match(/iPhone|iPad|Android/) || ['Phone'])[0];
+
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',2600); }
+  function send(action, value){
+    if(!ws || ws.readyState!==1){ toast('Not connected'); return; }
+    const m = {action}; if(value!==undefined && value!==null && value!=='') m.value = Number(value);
+    ws.send(JSON.stringify(m));
+    if(navigator.vibrate) navigator.vibrate(12);
+  }
+
+  function bind(el){ el.addEventListener('click', () => {
+    const a = el.dataset.a, v = el.dataset.v;
+    if(a==='vmix.Camera'){ cam = Number(v); renderCams(); }
+    send(a, v);
+  }); }
+  document.querySelectorAll('[data-a]').forEach(bind);
+
+  function renderCams(){
+    const n = st && st.cameras && st.cameras.length ? st.cameras.length : 4;
+    const box = $('cams');
+    if(box.children.length !== n){
+      box.innerHTML='';
+      for(let i=1;i<=n;i++){ const b=document.createElement('div'); b.className='btn'; b.textContent='CAM '+i; b.dataset.a='vmix.Camera'; b.dataset.v=i; bind(b); box.appendChild(b); }
+    }
+    [...box.children].forEach(b => b.classList.toggle('sel', Number(b.dataset.v)===cam));
+  }
+
+  function chip(el, ok){ el.className = 'chip ' + (ok ? 'ok' : 'bad'); }
+
+  function render(){
+    if(!st) return;
+    chip($('vmix'), !!st.vmixConnected);
+    chip($('atem'), !!st.atemConnected);
+    const s = st.override ? 'OVERRIDE' : st.state;
+    $('stateText').textContent = s;
+    $('state').className = 'st ' + (st.override ? 'override' : s==='REPLAY ON AIR' ? 'onair' : (s==='STINGER IN'||s==='STINGER OUT') ? 'moving' : '');
+    $('playing').textContent = st.replayPlaying ? '▶ PLAYING' : '';
+    const al = $('alert'); al.style.display = st.lastAlert ? 'block' : 'none'; al.textContent = st.lastAlert || '';
+    $('app').classList.toggle('locked', st.allowTransport === false);
+    [...$('speeds').children].forEach(b => b.classList.toggle('sel', Math.abs(Number(b.dataset.v) - (st.speed||1)) < 0.001));
+    renderCams();
+  }
+
+  function connect(){
+    const proto = location.protocol==='https:'?'wss':'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`);
+    ws.onopen = () => { retry=0; $('offline').style.display='none'; };
+    ws.onmessage = e => {
+      const m = JSON.parse(e.data);
+      if(m.type==='state'){ st=m.state; render(); }
+      else if(m.type==='ack' && !m.ok) toast(m.error || 'Refused');
+    };
+    ws.onclose = () => { $('offline').style.display='grid'; setTimeout(connect, Math.min(5000, 500*(++retry))); };
+  }
+  renderCams();
+  connect();
+})();
+</script>
+</body>
+</html>
