@@ -45,7 +45,7 @@ public sealed class VmixSettings
 
     /// <summary>
     /// vMix input shown when no replay is on air (a black Colour input). Needed for <see cref="VmixStingerMode.Keyed"/>;
-    /// in the other modes it is where vMix goes after the replay (empty = back to what vMix showed before).
+    /// in the other modes it is where vMix goes after the replay. Empty = the first Colour input in vMix.
     /// </summary>
     public string BlackInput { get; set; } = "";
 
@@ -112,8 +112,6 @@ public sealed class VmixSettings
         var p = new List<string>();
         if (string.IsNullOrWhiteSpace(Host)) p.Add("vMix address is empty.");
         if (Port is < 1 or > 65535) p.Add("vMix port must be 1-65535.");
-        if (Mode == VmixStingerMode.Keyed && string.IsNullOrWhiteSpace(BlackInput))
-            p.Add("Keyed stinger needs a black input in vMix (add a Colour input set to black and enter its number or title).");
         if (Mode != VmixStingerMode.AtemOnly)
         {
             if (string.IsNullOrWhiteSpace(TransitionIn) || string.IsNullOrWhiteSpace(TransitionOut)) p.Add("vMix transition names cannot be empty.");

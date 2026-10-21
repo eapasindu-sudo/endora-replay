@@ -348,11 +348,11 @@ public class VmixBridgeTests
     }
 
     [Fact]
-    public void Keyed_mode_needs_a_black_input()
+    public void Default_vmix_settings_are_valid_and_black_input_defaults_to_the_first_colour_input()
     {
-        var s = new VmixSettings { Mode = VmixStingerMode.Keyed, BlackInput = "" };
-        Assert.Contains(s.Validate(), p => p.Contains("black", StringComparison.OrdinalIgnoreCase));
-        s.BlackInput = "1";
-        Assert.Empty(s.Validate());
+        Assert.Empty(new VmixSettings().Validate());
+        var (inputs, _, _, _) = VmixProtocol.ParseState(FakeVmixServer.Xml(false));
+        Assert.Equal(1, VmixProtocol.ResolveInput("", inputs, "Colour"));
+        Assert.Contains(new VmixSettings { CutPointMs = 900, StingerLengthMs = 500 }.Validate(), p => p.Contains("length", StringComparison.OrdinalIgnoreCase));
     }
 }

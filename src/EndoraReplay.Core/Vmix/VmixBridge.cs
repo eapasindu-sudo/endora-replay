@@ -117,7 +117,7 @@ public sealed class VmixBridge : IAsyncDisposable
     private int VmixAtemInput => _settings().Atem.ReplayInput;
 
     public int? ReplayInputNumber => VmixProtocol.ResolveInput(V.ReplayInput, _vmix.Snapshot.Inputs, "Replay");
-    public int? BlackInputNumber => VmixProtocol.ResolveInput(V.BlackInput, _vmix.Snapshot.Inputs);
+    public int? BlackInputNumber => VmixProtocol.ResolveInput(V.BlackInput, _vmix.Snapshot.Inputs, "Colour");
 
     public BridgeStatus Status
     {
@@ -178,7 +178,7 @@ public sealed class VmixBridge : IAsyncDisposable
         if (!_atem.IsConnected) return "ATEM is not connected.";
         if (ReplayInputNumber is null) return "No replay input found in vMix. Add a Replay input or enter its number in Settings.";
         if (V.Mode == VmixStingerMode.Keyed && BlackInputNumber is null)
-            return "Keyed stinger needs the black input. Enter its number or title in Settings (vMix: Add Input → Colour, black).";
+            return "Keyed stinger needs a black input in vMix: Add Input → Colour (black), or enter its number or title in Settings.";
         return null;
     }
 

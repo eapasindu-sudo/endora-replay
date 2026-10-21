@@ -228,7 +228,7 @@ public sealed class VmixWindow : Window
         TextRow(form, "vmix.host", "vMix PC address", "127.0.0.1 when vMix runs on this PC", s => s.Vmix.Host, (s, v) => s.Vmix.Host = v);
         IntRow(form, "vmix.port", "vMix TCP port", "8099", s => s.Vmix.Port, (s, v) => s.Vmix.Port = v);
         TextRow(form, "vmix.replay", "Replay input in vMix", "number or title; empty = the first Replay input", s => s.Vmix.ReplayInput, (s, v) => s.Vmix.ReplayInput = v);
-        TextRow(form, "vmix.black", "Black input in vMix", "a black Colour input (number or title)", s => s.Vmix.BlackInput, (s, v) => s.Vmix.BlackInput = v);
+        TextRow(form, "vmix.black", "Black input in vMix", "number or title; empty = the first Colour input", s => s.Vmix.BlackInput, (s, v) => s.Vmix.BlackInput = v);
 
         Section(form, "Stinger");
         ComboRow(form, "vmix.mode", "How the replay goes on air",

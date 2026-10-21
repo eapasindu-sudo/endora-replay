@@ -22,7 +22,7 @@ vMix needs the camera pictures for its replay (capture cards, or an ATEM HDMI ou
 ## vMix set-up
 
 1. **Replay input** – the vMix Replay input. Leave the setting empty to use the first Replay input.
-2. **Black input** – *Add Input → Colour*, black. vMix shows it whenever no replay is on air.
+2. **Black input** – *Add Input → Colour*, black. vMix shows it whenever no replay is on air. Leave the setting empty to use the first Colour input.
 3. **Stinger** – put the stinger on *Stinger 1* in vMix and set its **transition point** to a moment where the stinger
    covers the whole picture. Enter the same number in Endora as *ATEM cut after (ms)*, and the stinger's full length as
    *Stinger length*.

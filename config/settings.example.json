@@ -62,6 +62,29 @@
     "allowTransport": true,
     "accessCode": "7KQ2-M9XA"
   },
+  // "Vmix": vMix makes the replays, Endora runs the vMix stinger and the ATEM (docs/VMIX_MODE.md). "Endora": Endora's own replay.
+  "engine": "Vmix",
+  "vmix": {
+    "host": "127.0.0.1",
+    "port": 8099,
+    // Empty = the first Replay input / the first Colour input in vMix.
+    "replayInput": "",
+    "blackInput": "",
+    "mode": "Keyed",
+    "transitionIn": "Stinger1",
+    "transitionOut": "Stinger1",
+    // ATEM cut time after the stinger starts = the stinger's transition point in vMix.
+    "cutPointMs": 500,
+    "stingerLengthMs": 1000,
+    "blackLeadMs": 120,
+    "startWhenReplayPlays": true,
+    "autoReturnWhenReplayStops": true,
+    "stopGraceMs": 600,
+    "followVmixProgram": true,
+    "functionsOnReplay": [],
+    "functionsOnLive": [],
+    "companionUrl": ""
+  },
   "updates": {
     "checkAutomatically": true,
     "repositoryUrl": "https://github.com/eapasindu-sudo/endora-replay",
