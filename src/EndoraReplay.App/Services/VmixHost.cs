@@ -63,7 +63,7 @@ public sealed class VmixHost : IAsyncDisposable, IRemoteHandler
             ShowScoreboard = () => SetScoreboard(true),
             ToggleScoreboard = () => SetScoreboard(!ScoreboardOnAir),
         };
-        Remote = new RemoteServer(this, Diagnostics);
+        Remote = new RemoteServer(this, Diagnostics) { PageName = "vmix.html" };
         Companion = new CompanionVariables(Diagnostics) { BaseUrl = s.Vmix.CompanionUrl };
         Updates = new UpdateService(s.Updates, Diagnostics);
 
@@ -82,7 +82,16 @@ public sealed class VmixHost : IAsyncDisposable, IRemoteHandler
     }
 
     /// <summary>Runs an operator action from the screen, keyboard, MIDI, phone, Companion or a vMix script.</summary>
-    public string? Execute(string action, string origin = "operator") => Bridge.Execute(action, origin);
+    public string? Execute(string action, string origin = "operator")
+    {
+        if (!VmixReplayControls.IsControl(action)) return Bridge.Execute(action, origin);
+        _ = Task.Run(async () =>
+        {
+            if (await Bridge.ExecuteAsync(action, null, origin).ConfigureAwait(false) is { } err)
+                Diagnostics.Warn(LogCategory.App, $"{action}: {err}");
+        });
+        return null;
+    }
 
     // ------------------------------------------------------------------ connections
 
@@ -250,16 +259,18 @@ public sealed class VmixHost : IAsyncDisposable, IRemoteHandler
     {
         var st = Bridge.Status;
         var a = Atem.Snapshot;
-        return new RemoteState(st.StateText, st.AtemConnected, a.ProgramInput, a.PreviewInput, Settings.Atem.ReplayInput, 0, 1.0, "VMIX",
-            null, null, 0, 0, st.ReplayPlaying ? "vMix replay playing" : null, st.LastAlert, st.State == BridgeState.Override,
-            Settings.Remote.AllowTransport, [], []);
+        var cameras = Enumerable.Range(1, Math.Clamp(Settings.Ui.CameraCount, 1, 8))
+            .Select(n => new RemoteCamera(n, $"Cam {n}", "OK", false)).ToList();
+        return new RemoteState(st.StateText, st.AtemConnected, a.ProgramInput, a.PreviewInput, Settings.Atem.ReplayInput, 0, Bridge.ReplaySpeed, "VMIX",
+            null, null, 0, 0, null, st.LastAlert, st.State == BridgeState.Override,
+            Settings.Remote.AllowTransport, cameras, [], st.VmixConnected, st.ReplayPlaying);
     }
 
     public IReadOnlyList<RemoteClip> GetClips() => [];
 
     public byte[]? GetPreviewJpeg(int? sourceId) => null;
 
-    public Task<string?> ExecuteAsync(RemoteCommand command, string client) => Task.FromResult(Execute(command.Action, client));
+    public Task<string?> ExecuteAsync(RemoteCommand command, string client) => Bridge.ExecuteAsync(command.Action, command.Value, client);
 
     public async ValueTask DisposeAsync()
     {

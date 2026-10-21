@@ -90,6 +90,8 @@ public sealed class VmixBridge : IAsyncDisposable
     private long _polledAtMs = -10_000;
     private string? _lastAlert;
     private bool _scoreboardHidden;
+    private string? _playAtCut;
+    private double _replaySpeed = 1;
 
     public VmixBridge(IVmix vmix, AtemSwitcherService atem, Func<AppSettings> settings, DiagnosticsService diagnostics)
     {
@@ -112,6 +114,9 @@ public sealed class VmixBridge : IAsyncDisposable
     public event Action<string>? Alerted;
 
     public BridgeState State { get { lock (_gate) return _state; } }
+
+    /// <summary>Last replay speed set from a remote (1 = 100 %).</summary>
+    public double ReplaySpeed { get { lock (_gate) return _replaySpeed; } }
 
     private VmixSettings V => _settings().Vmix;
     private int VmixAtemInput => _settings().Atem.ReplayInput;
@@ -157,13 +162,36 @@ public sealed class VmixBridge : IAsyncDisposable
         }
     }
 
-    public string? StartReplay(string origin)
+    /// <summary>
+    /// Runs and awaits an action, including the vMix replay controls (<see cref="VmixReplayControls"/>).
+    /// Returns an error for the operator, or null.
+    /// </summary>
+    public async Task<string?> ExecuteAsync(string action, double? value, string origin)
+    {
+        if (!VmixReplayControls.IsControl(action)) return Execute(action, origin);
+        if (State == BridgeState.Override) return "Emergency override is on: Endora sends nothing.";
+        // PLAY from READY: the stinger and the ATEM go first, and vMix starts playing at the cut.
+        if (VmixReplayControls.StartsReplay(action) && State == BridgeState.Idle)
+            return StartReplay(origin, VmixReplayControls.PlayFunction(action));
+        if (VmixReplayControls.TryMap(action, value, out var fn, out var query) is { } bad) return bad;
+        var err = await _vmix.FunctionAsync(fn, query).ConfigureAwait(false);
+        if (err is null && action == VmixReplayControls.Speed && value is { } sp)
+        {
+            lock (_gate) _replaySpeed = sp;
+            Changed();
+        }
+        return err;
+    }
+
+    /// <param name="playAtCut">vMix function that starts the replay playing at the ATEM cut (e.g. ReplayPlay), or null.</param>
+    public string? StartReplay(string origin, string? playAtCut = null)
     {
         if (CanStartReplay() is { } why) return why;
         lock (_gate)
         {
             if (_state != BridgeState.Idle) return "A replay is already on air.";
             _state = BridgeState.GoingToReplay;
+            _playAtCut = playAtCut;
         }
         Changed();
         _diag.Info(LogCategory.Automation, $"REPLAY ({origin})");
@@ -312,6 +340,7 @@ public sealed class VmixBridge : IAsyncDisposable
         {
             case VmixStingerMode.AtemOnly:
                 if (!_vmix.Snapshot.OnProgram(replay)) await FunctionAsync("CutDirect", replay, ct).ConfigureAwait(false);
+                await PlayAtCutAsync(ct).ConfigureAwait(false);
                 await _atem.SetPreviewAsync(vmixIn).ConfigureAwait(false);
                 if (v.AtemOnlyCut) await _atem.CutAsync().ConfigureAwait(false);
                 else await _atem.AutoAsync(v.AtemOnlyStyle).ConfigureAwait(false);
@@ -324,6 +353,7 @@ public sealed class VmixBridge : IAsyncDisposable
                 await WaitUntilAsync(t0 + v.CutPointMs, ct).ConfigureAwait(false);
                 await _atem.SetPreviewAsync(vmixIn).ConfigureAwait(false);
                 await _atem.CutAsync().ConfigureAwait(false);
+                await PlayAtCutAsync(ct).ConfigureAwait(false);
                 break;
             }
 
@@ -346,6 +376,7 @@ public sealed class VmixBridge : IAsyncDisposable
                 await WaitUntilAsync(t0 + v.CutPointMs, ct).ConfigureAwait(false);
                 await _atem.SetPreviewAsync(vmixIn).ConfigureAwait(false);
                 await _atem.CutAsync().ConfigureAwait(false);
+                await PlayAtCutAsync(ct).ConfigureAwait(false);
                 // vMix is now on Program under the key, so the key shows the same picture; take it off after the cut.
                 await Task.Delay(KeyOffAfterCutMs, ct).ConfigureAwait(false);
                 await _atem.SetDownstreamKeyOnAirAsync(AutomationSettings.StingerKeyer, false).ConfigureAwait(false);
@@ -627,6 +658,19 @@ public sealed class VmixBridge : IAsyncDisposable
         if (current is { } c) return c;
         if (a.PreviewInput is { } q && q != vmixIn) return q;
         return null;
+    }
+
+    /// <summary>Starts vMix playing when the replay was started from PLAY (so its first frames are not under the stinger).</summary>
+    private async Task PlayAtCutAsync(CancellationToken ct)
+    {
+        string? fn;
+        lock (_gate)
+        {
+            fn = _playAtCut;
+            _playAtCut = null;
+        }
+        if (fn is null) return;
+        if (await _vmix.FunctionAsync(fn, null, ct).ConfigureAwait(false) is { } err) Alert($"vMix {fn}: {err}");
     }
 
     private async Task FunctionAsync(string function, int? input, CancellationToken ct)

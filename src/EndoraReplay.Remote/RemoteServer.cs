@@ -39,7 +39,9 @@ public sealed record RemoteState(
     bool Override,
     bool AllowTransport,
     IReadOnlyList<RemoteCamera> Cameras,
-    IReadOnlyList<string> Tags);
+    IReadOnlyList<string> Tags,
+    bool? VmixConnected = null,
+    bool? ReplayPlaying = null);
 
 /// <param name="Action">An <see cref="OperatorActions"/> name, or "Jog", "SetTag", "ArmClip".</param>
 public sealed record RemoteCommand(string Action, double? Value = null, string? Text = null, long? ClipId = null);
@@ -67,6 +69,7 @@ public sealed class RemoteServer : IAsyncDisposable
     [
         OperatorActions.Replay, OperatorActions.Live, OperatorActions.Stop, OperatorActions.CancelAuto,
         OperatorActions.EmergencyOverride, "ArmClip",
+        Core.Vmix.VmixReplayControls.Play, Core.Vmix.VmixReplayControls.PlayLast, Core.Vmix.VmixReplayControls.Stop,
     ];
 
     private readonly IRemoteHandler _handler;
@@ -83,6 +86,9 @@ public sealed class RemoteServer : IAsyncDisposable
     }
 
     public int Port { get; private set; }
+
+    /// <summary>Embedded page served at the QR link: index.html (Endora replay) or vmix.html (vMix replay).</summary>
+    public string PageName { get; set; } = "index.html";
     public bool IsRunning => _app is not null;
     public IReadOnlyList<RemoteClientInfo> Clients => _clients.Values.Select(c => c.Info).ToList();
     public event Action? ClientsChanged;
@@ -104,7 +110,7 @@ public sealed class RemoteServer : IAsyncDisposable
         app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(10) });
 
         app.MapGet("/", () => Results.Text("Endora Replay remote. Scan the QR code on the Endora screen.", "text/plain"));
-        app.MapGet("/r/{code}", (string code) => Authorized(code) ? Results.Content(Page(), "text/html; charset=utf-8") : Denied());
+        app.MapGet("/r/{code}", (string code) => Authorized(code) ? Results.Content(Page(PageName), "text/html; charset=utf-8") : Denied());
         app.MapGet("/api/state", (HttpContext ctx) => Authorized(ctx) ? Results.Json(_handler.GetState(), JsonOptions) : Denied());
         app.MapGet("/api/clips", (HttpContext ctx) => Authorized(ctx) ? Results.Json(_handler.GetClips(), JsonOptions) : Denied());
         app.MapGet("/api/preview.jpg", (HttpContext ctx, int? src) =>
@@ -238,17 +244,16 @@ public sealed class RemoteServer : IAsyncDisposable
         }
     }
 
-    private static string? _page;
+    private static readonly ConcurrentDictionary<string, string> Pages = new();
 
-    private static string Page()
+    private static string Page(string name) => Pages.GetOrAdd(name, n =>
     {
-        if (_page is not null) return _page;
         var asm = typeof(RemoteServer).Assembly;
-        var res = asm.GetManifestResourceNames().First(n => n.EndsWith("index.html", StringComparison.Ordinal));
+        var res = asm.GetManifestResourceNames().First(r => r.EndsWith("." + n, StringComparison.Ordinal));
         using var s = asm.GetManifestResourceStream(res)!;
         using var r = new StreamReader(s, Encoding.UTF8);
-        return _page = r.ReadToEnd();
-    }
+        return r.ReadToEnd();
+    });
 
     /// <summary>Best guess at the LAN IPv4 address phones should use.</summary>
     public static string LanAddress()

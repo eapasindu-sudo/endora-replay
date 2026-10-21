@@ -37,6 +37,8 @@ public sealed class VmixWindow : Window
     private readonly Button _holdBtn = new();
     private readonly ListBox _log = new() { MinHeight = 160 };
     private readonly TextBlock _setupText = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12 };
+    private readonly Image _qr = new() { Width = 132, Height = 132, Margin = new Thickness(0, 0, 14, 0) };
+    private readonly TextBlock _phoneText = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _updateBtn = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(12, 0, 0, 0) };
 
     private readonly Dictionary<string, Func<AppSettings, string?>> _apply = [];
@@ -176,6 +178,12 @@ public sealed class VmixWindow : Window
         g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
         var setup = new StackPanel();
+        setup.Children.Add(new TextBlock { Text = "PHONE REMOTE", Style = (Style)FindResource("H2") });
+        RenderOptions.SetBitmapScalingMode(_qr, BitmapScalingMode.NearestNeighbor);
+        var phone = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
+        phone.Children.Add(_qr);
+        phone.Children.Add(_phoneText);
+        setup.Children.Add(phone);
         setup.Children.Add(new TextBlock { Text = "CONNECT COMPANION / STREAM DECK / vMix", Style = (Style)FindResource("H2") });
         setup.Children.Add(_setupText);
         var copyRow = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
@@ -442,6 +450,7 @@ public sealed class VmixWindow : Window
 
     private void RefreshSetupText()
     {
+        RefreshPhone();
         var r = _host.Settings.Remote;
         _setupText.Text = !r.Enabled
             ? "Remote links are off. Turn them on in Settings → Remote to use Companion, a Stream Deck or vMix shortcuts."
@@ -451,6 +460,40 @@ public sealed class VmixWindow : Window
               "vMix shortcut: copy a script below, add it in vMix (Settings → Scripting → Add, name EndoraReplay), " +
               "then Settings → Shortcuts → Add: your key, function ScriptStart, value EndoraReplay.\n\n" +
               "Nothing is needed for normal use: when the vMix replay starts playing, Endora runs the stinger and the ATEM by itself.";
+    }
+
+    /// <summary>QR code and link for the phone remote (vMix replay controls + REPLAY / LIVE).</summary>
+    private void RefreshPhone()
+    {
+        var url = _host.Remote.Url;
+        if (url is null)
+        {
+            _qr.Source = null;
+            _qr.Visibility = Visibility.Collapsed;
+            _phoneText.Text = _host.Settings.Remote.Enabled
+                ? "The phone remote is starting… (if it stays like this, the port may be in use: change it in Settings → Remote)."
+                : "Phone remote is off. Turn on Remote links in Settings.";
+            return;
+        }
+        try
+        {
+            var png = _host.Remote.QrPng(6);
+            if (png is not null)
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = new System.IO.MemoryStream(png);
+                bmp.EndInit();
+                bmp.Freeze();
+                _qr.Source = bmp;
+                _qr.Visibility = Visibility.Visible;
+            }
+        }
+        catch (Exception e) { _host.Diagnostics.Warn(LogCategory.Remote, $"QR code: {e.Message}"); }
+        _phoneText.Text = "Scan with the phone camera (same Wi-Fi as this PC):\n" + url +
+            "\n\nPLAY runs the stinger and the ATEM and starts vMix playing at the cut. Mark in/out, last 5-15 s, cameras, " +
+            "jog, speed, events, LIVE and STOP are all on the phone.";
     }
 
     // ------------------------------------------------------------------ live state

@@ -348,6 +348,47 @@ public class VmixBridgeTests
     }
 
     [Fact]
+    public async Task Phone_play_runs_the_stinger_and_atem_then_starts_vmix_playing_at_the_cut()
+    {
+        await using var diag = new DiagnosticsService(null, () => 0);
+        var (sim, atem) = await Atem(diag);
+        await using var _ = atem;
+        var vmix = new FakeVmix();
+        var settings = Settings(VmixStingerMode.Keyed);
+        await using var bridge = new VmixBridge(vmix, atem, () => settings, diag);
+        bridge.Start();
+        await Task.Delay(100);
+
+        Assert.Null(await bridge.ExecuteAsync(VmixReplayControls.Play, null, "phone"));
+        Assert.True(await Wait.For(() => bridge.State == BridgeState.OnAir));
+        Assert.Equal(VmixAtemInput, sim.Snapshot.ProgramInput);
+        var calls = vmix.CallsNow();
+        Assert.Equal(new[] { "Stinger1 Input=3", "ReplayPlay" }, calls);
+
+        // On air, PLAY and the other controls go straight to vMix.
+        Assert.Null(await bridge.ExecuteAsync(VmixReplayControls.Speed, 0.5, "phone"));
+        Assert.Equal(0.5, bridge.ReplaySpeed);
+        Assert.Null(await bridge.ExecuteAsync(VmixReplayControls.Camera, 2, "phone"));
+        Assert.Equal("ReplayCamera2", vmix.CallsNow()[^1]);
+        Assert.NotNull(await bridge.ExecuteAsync(VmixReplayControls.Camera, 9, "phone"));
+        Assert.NotNull(await bridge.ExecuteAsync("vmix.Anything", null, "phone"));
+    }
+
+    [Fact]
+    public void Replay_controls_map_to_vmix_functions()
+    {
+        Assert.Null(VmixReplayControls.TryMap(VmixReplayControls.Last, 8, out var fn, out var q));
+        Assert.Equal(("ReplayMarkInOutLive", "Value=8"), (fn, q));
+        Assert.Null(VmixReplayControls.TryMap(VmixReplayControls.Jog, -10, out fn, out q));
+        Assert.Equal(("ReplayJumpFrames", "Value=-10"), (fn, q));
+        Assert.Null(VmixReplayControls.TryMap(VmixReplayControls.Speed, 0.25, out fn, out q));
+        Assert.Equal(("ReplaySetSpeed", "Value=0.25"), (fn, q));
+        Assert.Null(VmixReplayControls.TryMap(VmixReplayControls.Stop, null, out fn, out _));
+        Assert.Equal("ReplayPause", fn);
+        Assert.NotNull(VmixReplayControls.TryMap(VmixReplayControls.Jog, 0, out _, out _));
+    }
+
+    [Fact]
     public void Default_vmix_settings_are_valid_and_black_input_defaults_to_the_first_colour_input()
     {
         Assert.Empty(new VmixSettings().Validate());
