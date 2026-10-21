@@ -52,6 +52,15 @@ Endora's own stinger. The scoreboard stays on DSK 2 or upstream key 1.
 - **OVERRIDE** (F12): Endora sends nothing to the ATEM or vMix until pressed again.
 - If someone in vMix takes the replay to Program by hand, or the ATEM operator cuts away, Endora follows.
 
+## Phone remote
+
+Scan the QR code on the vMix screen (phone on the same Wi-Fi). **PLAY** from READY runs the stinger and the ATEM and
+starts the vMix replay playing at the cut, so the start of the replay is not hidden under the stinger. On air, PLAY
+and **STOP** play and pause vMix; with auto return on, Endora goes back to live after a stop. The phone also has
+mark in / out / cancel, last 5-15 s (`ReplayMarkInOutLive`), camera 1-8 (`ReplayCameraN`), jog ±1 / ±10 frames,
+speed 100/75/50/25 %, previous / next event, play last event, NOW, LIVE, CUT TO LIVE, HOLD, scoreboard and override.
+Only these vMix Replay functions can be run from a remote.
+
 ## Companion and Stream Deck
 
 Each action is one URL (shown and copyable in the vMix screen):
@@ -60,7 +69,9 @@ Each action is one URL (shown and copyable in the vMix screen):
 GET http://<endora-pc>:8686/api/cmd/Replay?code=<access code>
 ```
 
-Actions: `Replay`, `Live`, `Stop`, `CancelAuto`, `Scoreboard`, `EmergencyOverride`. Use the *Generic HTTP* module in
+Actions: `Replay`, `Live`, `Stop`, `CancelAuto`, `Scoreboard`, `EmergencyOverride`, and the vMix replay controls
+`vmix.Play`, `vmix.Stop`, `vmix.MarkIn`, `vmix.MarkOut`, `vmix.MarkCancel`, `vmix.Last` (`&value=8`), `vmix.Camera` (`&value=2`),
+`vmix.Jog` (`&value=-10`), `vmix.Speed` (`&value=0.5`), `vmix.PlayLast`, `vmix.NextEvent`, `vmix.PreviousEvent`, `vmix.Now`. Use the *Generic HTTP* module in
 Companion. The reply is JSON `{ ok, action, error }` (HTTP 409 when the action was refused).
 
 For live button text, enter Companion's address (e.g. `http://127.0.0.1:8000`) in Settings and create these Companion
