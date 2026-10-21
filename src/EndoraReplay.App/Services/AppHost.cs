@@ -351,6 +351,8 @@ public sealed class AppHost : IAsyncDisposable
         to.Scoreboard = copy.Scoreboard;
         to.Ui = copy.Ui;
         to.VideoFormat = copy.VideoFormat;
+        to.Engine = copy.Engine;
+        to.Vmix = copy.Vmix;
     }
 
     /// <summary>Deep copy for the settings editor.</summary>

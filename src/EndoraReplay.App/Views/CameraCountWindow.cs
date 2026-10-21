@@ -12,6 +12,9 @@ public sealed class CameraCountWindow : Window
     public int Count { get; private set; }
     public bool AskAgain { get; private set; }
 
+    /// <summary>The operator chose vMix replay (no cameras recorded by Endora).</summary>
+    public bool UseVmix { get; private set; }
+
     public CameraCountWindow(int current, bool askAgain)
     {
         Count = current;
@@ -50,6 +53,14 @@ public sealed class CameraCountWindow : Window
             row.Children.Add(b);
         }
         root.Children.Add(row);
+        var vmix = new Button
+        {
+            Content = "Replays from vMix instead (Endora runs the stinger and the ATEM)  ·  V", Height = 44, FontSize = 14, FontWeight = FontWeights.Bold,
+            Margin = new Thickness(5, 14, 5, 0), Foreground = Brushes.White, Cursor = Cursors.Hand,
+            Background = new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1C)), BorderBrush = orange,
+        };
+        vmix.Click += (_, _) => PickVmix();
+        root.Children.Add(vmix);
         var ask = new CheckBox
         {
             Content = "Ask every time Endora starts", IsChecked = askAgain, Foreground = Brushes.Gray, FontSize = 13,
@@ -68,8 +79,15 @@ public sealed class CameraCountWindow : Window
         {
             if (e.Key is >= Key.D1 and <= Key.D8) Pick(e.Key - Key.D0);
             else if (e.Key is >= Key.NumPad1 and <= Key.NumPad8) Pick(e.Key - Key.NumPad0);
+            else if (e.Key == Key.V) PickVmix();
             else if (e.Key is Key.Enter or Key.Escape) Pick(current);
         };
+    }
+
+    private void PickVmix()
+    {
+        UseVmix = true;
+        DialogResult = true;
     }
 
     private void Pick(int n)

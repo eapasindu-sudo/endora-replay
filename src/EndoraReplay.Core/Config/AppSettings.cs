@@ -29,6 +29,12 @@ public sealed class AppSettings
     /// <summary>Web scoreboard keyed over the ATEM Program (DSK 2 or upstream key 1).</summary>
     public ScoreboardSettings Scoreboard { get; set; } = new();
 
+    /// <summary>Endora's own replay, or vMix replay with Endora automating the stinger and the ATEM.</summary>
+    public ReplayEngine Engine { get; set; } = ReplayEngine.Vmix;
+
+    /// <summary>vMix connection and automation, used when <see cref="Engine"/> is <see cref="ReplayEngine.Vmix"/>.</summary>
+    public VmixSettings Vmix { get; set; } = new();
+
     [JsonIgnore]
     public VideoFormat Format => Model.VideoFormat.Parse(VideoFormat);
 
@@ -64,6 +70,7 @@ public sealed class AppSettings
                      .GroupBy(s => (s.Backend, s.DeviceId)).Where(g => g.Count() > 1))
             problems.Add($"Device '{dup.Key.DeviceId}' is assigned to more than one source.");
         if (Atem.ReplayInput is < 1 or > 40) problems.Add("ATEM replay input must be between 1 and 40.");
+        if (Engine == ReplayEngine.Vmix) problems.AddRange(Vmix.Validate());
         problems.AddRange(Midi.Validate());
         if (Scoreboard.Enabled)
         {

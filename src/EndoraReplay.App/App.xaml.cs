@@ -9,13 +9,18 @@ namespace EndoraReplay.App;
 public partial class App : Application
 {
     private AppHost? _host;
+    private VmixHost? _vmixHost;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnUnhandled;
-        AskCameraCount();
+        if (EngineAtStart() == ReplayEngine.Vmix || AskCameraCount())
+        {
+            await StartVmixAsync();
+            return;
+        }
         var splash = new SplashWindow();
         splash.Show();
         var shownAt = DateTime.UtcNow;
@@ -43,16 +48,31 @@ public partial class App : Application
         splash.Close();
     }
 
-    /// <summary>Asks how many cameras are in use before anything starts recording, and saves the answer.</summary>
-    private static void AskCameraCount()
+    private static ReplayEngine EngineAtStart()
+    {
+        try { return AppSettings.Load(AppSettings.DefaultSettingsPath).Engine; }
+        catch (Exception) { return ReplayEngine.Vmix; }
+    }
+
+    /// <summary>
+    /// Asks how many cameras are in use before anything starts recording, and saves the answer.
+    /// Returns true when the operator chose vMix replay instead.
+    /// </summary>
+    private static bool AskCameraCount()
     {
         try
         {
             var path = AppSettings.DefaultSettingsPath;
             var settings = AppSettings.Load(path);
-            if (!settings.Ui.AskCameraCountOnStart) return;
+            if (!settings.Ui.AskCameraCountOnStart) return false;
             var w = new CameraCountWindow(settings.Ui.CameraCount, settings.Ui.AskCameraCountOnStart);
-            if (w.ShowDialog() != true) return;
+            if (w.ShowDialog() != true) return false;
+            if (w.UseVmix)
+            {
+                settings.Engine = ReplayEngine.Vmix;
+                settings.Save(path);
+                return true;
+            }
             settings.SetCameraCount(w.Count);
             settings.Ui.AskCameraCountOnStart = w.AskAgain;
             settings.Save(path);
@@ -61,12 +81,42 @@ public partial class App : Application
         {
             // A broken settings file is reported by the normal start-up below.
         }
+        return false;
+    }
+
+    /// <summary>vMix replay: no cameras are recorded; Endora automates the vMix stinger and the ATEM.</summary>
+    private async Task StartVmixAsync()
+    {
+        var splash = new SplashWindow();
+        splash.Show();
+        var progress = new Progress<string>(splash.SetStatus);
+        try
+        {
+            _vmixHost = await Task.Run(() => VmixHost.StartAsync(AppSettings.DefaultSettingsPath, progress));
+        }
+        catch (Exception ex)
+        {
+            splash.Close();
+            MessageBox.Show($"Endora Replay could not start.\n\n{ex.Message}\n\nSettings file: {AppSettings.DefaultSettingsPath}",
+                "Endora Replay", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
+        var main = new VmixWindow(_vmixHost);
+        MainWindow = main;
+        main.Closed += async (_, _) =>
+        {
+            try { await _vmixHost.DisposeAsync(); }
+            finally { Shutdown(0); }
+        };
+        main.Show();
+        splash.Close();
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         // Keep the app (and the replay output) alive: log and continue rather than crash on air.
-        _host?.Diagnostics.Error(Core.Services.LogCategory.App, $"Unhandled UI error: {e.Exception}");
+        (_host?.Diagnostics ?? _vmixHost?.Diagnostics)?.Error(Core.Services.LogCategory.App, $"Unhandled UI error: {e.Exception}");
         e.Handled = true;
     }
 }

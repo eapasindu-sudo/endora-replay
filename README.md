@@ -3,6 +3,12 @@
 Multi-camera instant replay for cricket and live sport, built for a Windows PC working with a
 Blackmagic **ATEM Mini Extreme**.
 
+**vMix replay mode (default):** vMix makes the replays; when the vMix replay plays, Endora runs the vMix stinger and
+switches the ATEM automatically, and goes back to live when it stops. Companion, Stream Deck and vMix shortcuts can
+trigger it too. See [docs/VMIX_MODE.md](docs/VMIX_MODE.md).
+
+Endora's own replay engine (below) is still available: Settings → *Replay engine*.
+
 - Up to **8 USB capture cameras** recorded into rolling disk buffers on one shared clock, plus the
   ATEM **Program** (final out) feed in its own monitor.
 - **Live** and **Jog** cue modes, jog wheel, frame step and shuttle, **IN / OUT** marks, clip library with
@@ -34,6 +40,7 @@ Video always travels over HDMI. The network carries only control and the phone r
 
 | | |
 |---|---|
+| [docs/VMIX_MODE.md](docs/VMIX_MODE.md) | vMix replay with ATEM + stinger automation, Companion and vMix shortcuts |
 | [docs/BUILD.md](docs/BUILD.md) | Building, testing, packaging the installer, releasing updates |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every setting, with the example in `config/settings.example.json` |
 | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) | Dependency, licensing and hardware compatibility report |

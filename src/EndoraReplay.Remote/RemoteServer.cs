@@ -114,6 +114,17 @@ public sealed class RemoteServer : IAsyncDisposable
             return jpeg is null ? Results.NoContent() : Results.Bytes(jpeg, "image/jpeg");
         });
         app.Map("/ws", HandleSocketAsync);
+        // One URL per action for Bitfocus Companion (Generic HTTP), Stream Deck plugins and vMix scripts:
+        // GET or POST /api/cmd/Replay?code=XXXX (optional &value=).
+        app.MapMethods("/api/cmd/{action}", ["GET", "POST"], async (HttpContext ctx, string action, double? value, string? text) =>
+        {
+            if (!Authorized(ctx)) return Denied();
+            var client = $"http:{ctx.Connection.RemoteIpAddress}";
+            string? error;
+            if (TransportActions.Contains(action) && !_allowTransport) error = "This remote may not take replays on or off air.";
+            else error = await _handler.ExecuteAsync(new RemoteCommand(action, value, text), client).ConfigureAwait(false);
+            return Results.Json(new { ok = error is null, action, error }, JsonOptions, statusCode: error is null ? 200 : 409);
+        });
 
         await app.StartAsync().ConfigureAwait(false);
         _app = app;

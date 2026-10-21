@@ -28,6 +28,7 @@ public static class LogCategory
     public const string Remote = "REMOTE";
     public const string App = "APP";
     public const string Update = "UPDATE";
+    public const string Vmix = "VMIX";
 }
 
 public sealed record LogEvent(DateTime Utc, long SessionTicks, LogSeverity Severity, string Category, string Message, IReadOnlyDictionary<string, object?>? Data = null);
