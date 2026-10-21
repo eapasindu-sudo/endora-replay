@@ -77,7 +77,11 @@ public sealed class ReplayAutomationService : IAsyncDisposable
         _playback.Failed += r => Post(new PlaybackFailed(r));
         _playback.Output.ReadinessChanged += (r, m) => Post(new OutputReadinessEvent(r == OutputReadiness.Ready, m));
 
-        _loop = Task.Run(LoopAsync);
+        // The loop runs on its own high-priority thread so a busy thread pool cannot delay a stinger cut by frames.
+        var loopDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _loop = loopDone.Task;
+        new Thread(() => { try { Loop(); } finally { loopDone.TrySetResult(); } })
+            { IsBackground = true, Name = "Endora automation", Priority = ThreadPriority.AboveNormal }.Start();
         _ticker = Task.Run(TickAsync);
         Post(new OutputReadinessEvent(_playback.Output.Readiness == OutputReadiness.Ready, _playback.Output.ReadinessMessage));
     }
@@ -114,11 +118,12 @@ public sealed class ReplayAutomationService : IAsyncDisposable
         catch (OperationCanceledException) { }
     }
 
-    private async Task LoopAsync()
+    private void Loop()
     {
         try
         {
-            await foreach (var e in _events.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
+            while (_events.Reader.WaitToReadAsync(_cts.Token).AsTask().GetAwaiter().GetResult())
+            while (_events.Reader.TryRead(out var e))
             {
                 if (e is OptionsChanged oc)
                 {
@@ -138,7 +143,7 @@ public sealed class ReplayAutomationService : IAsyncDisposable
                     _diag.Error(LogCategory.Automation, $"State machine fault on {e.GetType().Name}: {ex}");
                     continue;
                 }
-                foreach (var a in actions) await ExecuteAsync(a).ConfigureAwait(false);
+                foreach (var a in actions) ExecuteAsync(a).GetAwaiter().GetResult();
             }
         }
         catch (OperationCanceledException) { }
