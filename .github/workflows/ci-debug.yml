@@ -1,0 +1,27 @@
+name: CI debug (temporary)
+on:
+  push:
+    branches: [claude/ci-debug]
+jobs:
+  debug:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build all
+        shell: pwsh
+        run: |
+          $out = dotnet build EndoraReplay.sln -c Release 2>&1
+          $errs = $out | Select-String -Pattern "error " | Select-Object -Unique -First 40
+          foreach ($e in $errs) { Write-Output "::error::$($e.Line)" }
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Test
+        if: always()
+        shell: pwsh
+        run: |
+          $out = dotnet test tests/EndoraReplay.Core.Tests -c Release 2>&1
+          $lines = $out | Select-String -Pattern "\[FAIL\]|Assert\.|Expected|Actual|error |Exception|:line " | Select-Object -First 45
+          foreach ($e in $lines) { Write-Output "::error::$($e.Line)" }
+          foreach ($e in ($out | Select-String -Pattern "Passed!|Failed!")) { Write-Output "::warning::$($e.Line)" }
