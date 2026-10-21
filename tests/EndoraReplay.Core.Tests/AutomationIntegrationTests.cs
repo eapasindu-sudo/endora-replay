@@ -7,7 +7,12 @@ using EndoraReplay.Core.Simulation;
 
 namespace EndoraReplay.Core.Tests;
 
+/// <summary>Frame-timing tests run alone so other tests' timers do not make them miss frames.</summary>
+[CollectionDefinition("FrameTiming", DisableParallelization = true)]
+public sealed class FrameTimingCollection;
+
 /// <summary>Automation service + playback + SIMULATED switcher, end to end.</summary>
+[Collection("FrameTiming")]
 public class AutomationIntegrationTests
 {
     private sealed class NoStingers : IStingerProvider
