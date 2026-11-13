@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>EndoraReplay.Hardware</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- Official Blackmagic ATEM Switchers SDK: generate lib\Interop.BMDSwitcherAPI.dll on a PC with
+       ATEM Software Control installed (tools\Generate-AtemInterop.ps1). Without it this backend is reported
+       unavailable and the build still succeeds. -->
+  <PropertyGroup Condition="Exists('$(RepoRoot)lib\Interop.BMDSwitcherAPI.dll')">
+    <DefineConstants>$(DefineConstants);BMD_SDK</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(RepoRoot)lib\Interop.BMDSwitcherAPI.dll')">
+    <Reference Include="Interop.BMDSwitcherAPI">
+      <HintPath>$(RepoRoot)lib\Interop.BMDSwitcherAPI.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.13.0.20260627" />
+    <PackageReference Include="LibAtem" Version="1.0.0" />
+    <PackageReference Include="log4net" Version="3.5.0" />
+    <PackageReference Include="System.Management" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EndoraReplay.Core\EndoraReplay.Core.csproj" />
+  </ItemGroup>
+</Project>
