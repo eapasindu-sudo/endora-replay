@@ -70,6 +70,7 @@ jobs:
           --icon src/EndoraReplay.App/Assets/endora.ico --splashImage src/EndoraReplay.App/Assets/endora-branding.png --outputDir Releases
 
       - uses: actions/upload-artifact@v4
+        continue-on-error: true # the account's artifact storage can be full; the GitHub release below is what matters
         with:
           name: EndoraReplay-${{ steps.ver.outputs.version }}
           path: Releases/*

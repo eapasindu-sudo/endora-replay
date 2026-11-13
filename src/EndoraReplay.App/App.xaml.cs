@@ -16,6 +16,12 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         DispatcherUnhandledException += OnUnhandled;
+        // Endora licence key: needed before anything starts.
+        if (!await Licence.EnsureAsync())
+        {
+            Shutdown(0);
+            return;
+        }
         if (EngineAtStart() == ReplayEngine.Vmix || AskCameraCount())
         {
             await StartVmixAsync();
